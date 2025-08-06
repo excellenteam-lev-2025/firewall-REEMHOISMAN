@@ -1,20 +1,25 @@
 import express from 'express';
 import {initializeDatabase } from './db.js';
+import routerIP from "./routes/routerIP.js";
 
 const PORT = process.env.PORT || 3000;
 const app = express();
 
-(async () => {
-    await initializeDatabase();
+initializeDatabase().then(()=>{
     app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
-})();
+});
 
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static("public"));
 
 app.use(express.json());
+
 
 app.get('/', (req, res) => {
     res.send('Hello from Express!');
 });
+
+app.use('/api/firewall/ip', routerIP);
 
 app.use((err:any, req:any, res:any, next:any)=> {
         console.error('Error:', err);

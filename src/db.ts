@@ -4,7 +4,7 @@ import fs from 'fs';
 
 dotenv.config();
 
-const pool = new Pool({
+export const pool = new Pool({
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
     database: process.env.DB_NAME,
@@ -22,5 +22,4 @@ export async function initializeDatabase() {
     }
 }
 
-export const query = (text: string, params: any[]) => pool.query(text, params);
 
