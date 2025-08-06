@@ -9,9 +9,6 @@ initializeDatabase().then(()=>{
     app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
 });
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static("public"));
-
 app.use(express.json());
 
 
@@ -23,7 +20,7 @@ app.use('/api/firewall/ip', routerIP);
 
 app.use((err:any, req:any, res:any, next:any)=> {
         console.error('Error:', err);
-        res.status(500).json({ error: err.message || 'Internal Server Error' });
+        res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
     }
 )
 

@@ -1,12 +1,10 @@
-import { pool } from '../db.js';
-
-export const addIp = async (value: string, mode: string) => {
+export const addIp = async (value: string, mode: string, client:any) => {
     const sql = `
-        INSERT INTO ip (value, mode)
-        VALUES ($1, $2)
+        INSERT INTO rules (type, value, mode)
+        VALUES ('ip', $1, $2)
         ON CONFLICT (value) DO NOTHING
         RETURNING *;
     `;
-    const result = await pool.query(sql, [value, mode]);
+    const result = await client.query(sql, [value, mode]);
     return result.rows[0];
 };
