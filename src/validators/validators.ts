@@ -1,47 +1,88 @@
 import { Request, Response, NextFunction } from "express";
+import {BadRequestError} from "../utils/errors.js";
 
-const NOT_ARRAY_ERR = 'Invalid request body: expected "values" array';
-const MISSING_BODY_PARAM_ERR = 'Invalid request body: missing "values" / "mode"';
-const MODE_NAME_ERR = 'Invalid request body: mode can be "blacklist" / "whitelist"';
-const VALUES_TYPES_ERR = 'Invalid request body: expected values element to be type: ';
+const MISSING_VALS_OR_MODE_ERR = 'missing "values" / "mode"';
+const MISSING_TYPE = 'missing "url" / "ip" / "port';
+const MODE_NAME_ERR = 'mode can be "blacklist" / "whitelist"';
+const VALS_ERR = 'expected an array of valid';
 
-export const isBodyValid = (req: Request, res: Response, next: NextFunction) => {
-    const { values, mode } = req.body;
+export const isModeValid = (req: Request, res: Response, next: NextFunction) => {
+    const { mode } = req.body || {};
 
-    if (!values || !mode)
-        return res.status(400).json({ error: MISSING_BODY_PARAM_ERR });
+    if (!mode) {
+        return next(new BadRequestError(MISSING_VALS_OR_MODE_ERR));
+    }
 
-    if (!Array.isArray(values))
-        return res.status(400).json({ error: NOT_ARRAY_ERR });
-
-    if (!['blacklist', 'whitelist'].includes(mode))
-        return res.status(400).json({ error: MODE_NAME_ERR });
-
-    const valuesType = mode === 'ip' ? 'int' : 'string';
-
-    if (values.some(val => typeof val !== valuesType))
-        return res.status(400).json({ error: VALUES_TYPES_ERR + valuesType });
-
-    next();
-};
-
-
-export const isIpsValid = (req: any, res: any, next: any) => {
-    const { values } = req.body;
-
-    const isValidIP = (ip: string) => {
-        const parts = ip.split('.');
-        if (parts.length !== 4) return false;
-        return parts.every(part => {
-            const num = Number(part);
-            return !isNaN(num) && num >= 0 && num <= 255 && String(num) === part;
-        });
-    };
-
-    if (values.some((val: string) => !isValidIP(val))) {
-        return res.status(400).json({ error: 'Invalid IP address in values array' });
+    if (!['blacklist', 'whitelist'].includes(mode)) {
+        return next(new BadRequestError(MODE_NAME_ERR));
     }
 
     next();
 };
+
+
+
+
+export const isIpsValid = (req: Request, res: Response, next: NextFunction) => {
+    const { values } = req.body;
+    const regexIP = /^\d+\.\d+\.\d+\.\d+$/;
+
+    if (!validateValuesRegex(regexIP, values)) {
+        return next(new BadRequestError(VALS_ERR + ' IP addresses'));
+    }
+
+    req.body.type = 'ip';
+    next();
+};
+
+
+
+
+export const isUrlsValid = (req: Request, res: Response, next: NextFunction) => {
+    const { values } = req.body;
+    const regexUrl = /^[a-zA-Z]+\.[a-zA-Z]+$/;
+
+    if (!validateValuesRegex(regexUrl, values)) {
+        return next(new BadRequestError(VALS_ERR + ' URL addresses'));
+    }
+
+    req.body.type = 'url';
+    next();
+}
+
+export const isPortsValid = (req: Request, res: Response, next: NextFunction) => {
+    const { values } = req.body;
+
+    if (!Array.isArray(values) || !values.every((val: number) => typeof val === 'number' && val >= 0 && val <= 65535)) {
+        return next(new BadRequestError(VALS_ERR + ' Ports'));
+    }
+
+    req.body.type = 'port';
+    next();
+}
+
+const validateValuesRegex = (regex: RegExp, values: any[]) =>
+     Array.isArray(values) && values.every(val => typeof val === 'string' && regex.test(val))
+
+
+export const isToggleValid = (req: Request, res: Response, next: NextFunction) => {
+    const {urls, ports, ips} = req.body;
+
+    if (!urls || !ports || !ips) {
+        return next(new BadRequestError(MISSING_TYPE));
+    }
+
+    for (const [type, params] of Object.entries({urls, ports, ips})) {
+        if (params && Object.keys(params).length > 0) {
+            if (!Array.isArray(params.ids) || !params.mode || typeof params.active !== 'boolean') {
+                return next(new BadRequestError(`Invalid or missing fields for ${type}`));
+            }
+            if (!['blacklist', 'whitelist'].includes(params.mode)) {
+                return next(new BadRequestError(`Invalid mode for ${type}`));
+            }
+        }
+    }
+
+    next();
+}
 
