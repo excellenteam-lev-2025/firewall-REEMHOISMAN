@@ -1,15 +1,15 @@
 import express from 'express';
-import {initializeDatabase } from './db.js';
+import {initDb } from './db.js';
 import routerIP from "./routes/routerIP.js";
 import routerUrl from "./routes/routerUrl.js";
 import routerPort from "./routes/routerPort.js";
 import routerRules from "./routes/routerRules.js";
+import {ENV} from "./config/env.js";
 
-const PORT = process.env.PORT;
 const app = express();
 
-initializeDatabase().then(()=>{
-    app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+initDb().then(()=>{
+    app.listen(ENV.PORT, () => console.log(`Server is running on port ${ENV.PORT}`));
 });
 
 app.use(express.json());

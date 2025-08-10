@@ -1,23 +1,16 @@
 import { Pool } from 'pg';
-import {ENV} from './config/env.js'
+import {DB_URI} from './config/env.js'
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import fs from 'fs';
 
-export const pool = new Pool({
-    user: ENV.DB_USER,
-    host: ENV.DB_HOST,
-    database: ENV.DB_NAME,
-    password: ENV.DB_PASSWORD,
-    port: parseInt(ENV.DB_PORT || "5432"),
-});
+import { drizzle } from "drizzle-orm/node-postgres"
 
-export async function initializeDatabase() {
-    try {
-        const schemaSql = fs.readFileSync('init.sql', 'utf8');
-        await pool.query(schemaSql);
-        console.log('Database schema initialized successfully.');
-    } catch (err) {
-        console.error('Error initializing database schema:', err);
-    }
+const db = drizzle(DB_URI);
+const pool = db.$client;
+
+
+export async function initDb() {
+    await migrate(db, { migrationsFolder: 'drizzle' });
 }
 
 
