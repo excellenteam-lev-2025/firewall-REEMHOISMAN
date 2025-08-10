@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS rules;
+
+CREATE TABLE IF NOT EXISTS rules (
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(10),
+    value VARCHAR(45) UNIQUE,
+    mode VARCHAR(10),
+    active BOOLEAN DEFAULT TRUE
+);
