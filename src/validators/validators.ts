@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import validator from 'validator'
 
 const NOT_ARRAY_ERR = 'Invalid request body: expected "values" array';
 const MISSING_BODY_PARAM_ERR = 'Invalid request body: missing "values" / "mode"';
