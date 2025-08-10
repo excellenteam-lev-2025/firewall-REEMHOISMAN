@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import validator from 'validator'
+import validator, {isIP} from 'validator'
 import {BadRequestError} from "../utils/errors.js";
 
 const MISSING_VALS_OR_MODE_ERR = 'missing "values" / "mode"';
@@ -26,9 +26,7 @@ export const isModeValid = (req: Request, res: Response, next: NextFunction) => 
 
 export const isIpsValid = (req: Request, res: Response, next: NextFunction) => {
     const { values } = req.body;
-    const regexIP = /^\d+\.\d+\.\d+\.\d+$/;
-
-    if (!validateValuesRegex(regexIP, values)) {
+    if (!values.every((val:string)=>isIP(val, 4))){
         return next(new BadRequestError(VALS_ERR + ' IP addresses'));
     }
 
