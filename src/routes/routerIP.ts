@@ -1,8 +1,11 @@
-import * as service from '../services/ServiceIP.js';
+import * as service from '../services/ServiceRules.js';
 import {Router} from "express";
-import {isIpsValid, isBodyValid} from '../validators/validators.js'
+import {isIpsValid, isModeValid} from '../validators/validators.js'
+
 const routerIp = Router();
 
-routerIp.post('/', isBodyValid, isIpsValid,service.addIpsService);
+routerIp.use(isModeValid, isIpsValid)
+routerIp.post('/', service.addRuleService);
+routerIp.delete('/', service.deleteRuleService);
 
 export default routerIp;
