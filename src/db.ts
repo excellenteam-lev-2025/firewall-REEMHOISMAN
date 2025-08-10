@@ -1,15 +1,13 @@
 import { Pool } from 'pg';
-import dotenv from 'dotenv';
+import {ENV} from './config/env.js'
 import fs from 'fs';
 
-dotenv.config();
-
 export const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: parseInt(process.env.DB_PORT || "5432"),
+    user: ENV.DB_USER,
+    host: ENV.DB_HOST,
+    database: ENV.DB_NAME,
+    password: ENV.DB_PASSWORD,
+    port: parseInt(ENV.DB_PORT || "5432"),
 });
 
 export async function initializeDatabase() {
