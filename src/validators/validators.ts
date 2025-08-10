@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import validator, {isIP} from 'validator'
+import {isIP, isURL} from 'validator'
 import {BadRequestError} from "../utils/errors.js";
 
 const MISSING_VALS_OR_MODE_ERR = 'missing "values" / "mode"';
@@ -39,9 +39,8 @@ export const isIpsValid = (req: Request, res: Response, next: NextFunction) => {
 
 export const isUrlsValid = (req: Request, res: Response, next: NextFunction) => {
     const { values } = req.body;
-    const regexUrl = /^[a-zA-Z]+\.[a-zA-Z]+$/;
 
-    if (!validateValuesRegex(regexUrl, values)) {
+    if (!values.every((val:string)=> isURL(val))){
         return next(new BadRequestError(VALS_ERR + ' URL addresses'));
     }
 
@@ -59,9 +58,6 @@ export const isPortsValid = (req: Request, res: Response, next: NextFunction) =>
     req.body.type = 'port';
     next();
 }
-
-const validateValuesRegex = (regex: RegExp, values: any[]) =>
-     Array.isArray(values) && values.every(val => typeof val === 'string' && regex.test(val))
 
 
 export const isToggleValid = (req: Request, res: Response, next: NextFunction) => {
