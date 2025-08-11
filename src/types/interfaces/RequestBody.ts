@@ -3,7 +3,7 @@ export interface Data {
     values: string[],
     mode: string,
     type: string;
-    ids: number[]
+    ids?: number[]
     active?: boolean;
 }
 

@@ -1,4 +1,3 @@
-// db/schema.ts
 import { pgTable, serial, varchar, boolean } from 'drizzle-orm/pg-core';
 
 export const rules = pgTable('rules', {

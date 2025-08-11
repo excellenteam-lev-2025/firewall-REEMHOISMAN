@@ -1,17 +1,24 @@
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { DB_URI } from './config/env.js';
+import { DB_URI, ENV } from './config/env.js';
+import { logger } from './config/Logger.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// db connection
 export const db = drizzle(DB_URI);
 
 export async function initDb() {
-    // קובעים תמיד את הנתיב היחסי לשורש הפרויקט
-    const migrationsFolder = path.join(__dirname, '../../drizzle');
-    await migrate(db, { migrationsFolder });
+    const migrationsFolder = path.join(process.cwd(), 'drizzle');
+    const interval = Number(ENV.DB_CONNECTION_INTERVAL) || 5000;
+
+    while (true) {
+        try {
+            await migrate(db, { migrationsFolder });
+            logger.info('migrations complete ✅');
+            break;
+        } catch (err) {
+            logger.error(`❌ database migration failed: ${(err as Error).message}`);
+            logger.info(`Retrying in ${interval}...`);
+            await new Promise((resolve) => setTimeout(resolve, interval));
+        }
+    }
 }

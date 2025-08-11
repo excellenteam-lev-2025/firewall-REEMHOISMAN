@@ -1,28 +1,37 @@
 import {rules} from "../types/models/rules.js";
 import {db} from "../db.js";
-import {Data, UpdateData, UpdateReqBody} from "../types/interfaces/RequestBody.js";
+import {Data} from "../types/interfaces/RequestBody.js";
 import {and, eq, inArray} from "drizzle-orm";
+import {HttpError} from "../utils/errors.js";
 
-export const addRule = async (toAdd: Data) => {
-    await db.transaction(async (trx) => {
-        await trx.insert(rules).values(
-            toAdd.values.map((v) => ({type: toAdd.type, value: v, mode: toAdd.mode})),
-        );
-    });
+export const addRules = async (trx:any, toAdd: Data) => {
+    const rows = toAdd.values.map((v) => ({
+        type: toAdd.type,
+        value: v,
+        mode: toAdd.mode,
+    }));
+    const inserted = await trx
+        .insert(rules)
+        .values(rows)
+        .onConflictDoNothing({ target: rules.value })
+        .returning({ id: rules.id });
+
+    if (inserted.length !== toAdd.values.length) {
+        throw new HttpError(409, "One or more rules already exist (conflict).");
+    }
 };
 
-export const deleteRule = async (toDelete: Data) => {
-
-    await db.transaction(async (trx) => {
-        const rows = await Promise.all(
-            toDelete.values.map(v =>
-                trx
-                    .delete(rules)
-                    .where(and(eq(rules.type, toDelete.type), eq(rules.value, v), eq(rules.mode, toDelete.mode)))
-                    .returning()
+export const deleteRule = async (trx:any, toDelete: Data) => {
+    return trx
+        .delete(rules)
+        .where(
+            and(
+                eq(rules.type, toDelete.type),
+                eq(rules.mode, toDelete.mode),
+                inArray(rules.value, toDelete.values)
             )
-        );
-    })
+        )
+        .returning();
 
 };
 
@@ -32,11 +41,15 @@ export const getAllRules = async () => {
 };
 
 export const toggleRules = async (trx:any, toUpdate:Data) => {
-    if (!Array.isArray(toUpdate.ids) ||!toUpdate.ids.length)  return Promise.resolve([]);
     return trx
         .update(rules)
-        .set({ active : toUpdate.active })
-        .where(and(eq(rules.type, toUpdate.type), eq(rules.mode, toUpdate.mode), inArray(rules.id, toUpdate.ids)))
+        .set({ active: toUpdate.active })
+        .where(
+            and(
+                eq(rules.mode, toUpdate.mode),
+                inArray(rules.id, toUpdate.ids)
+            )
+        )
         .returning({ id: rules.id, active: rules.active, type: rules.type, mode: rules.mode });
 };
 
