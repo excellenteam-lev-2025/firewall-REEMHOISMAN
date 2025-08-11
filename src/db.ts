@@ -5,8 +5,7 @@ import fs from 'fs';
 
 import { drizzle } from "drizzle-orm/node-postgres"
 
-const db = drizzle(DB_URI);
-const pool = db.$client;
+export const db = drizzle(DB_URI);
 
 
 export async function initDb() {

@@ -1,32 +1,39 @@
-export const addRule = async (type: string, value: string, mode: string, client:any) => {
-    const sql = `
-        INSERT INTO rules (type, value, mode)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (value) DO NOTHING
-        RETURNING *;
-    `;
-    const result = await client.query(sql, [type, value, mode]);
-    return result.rows[0];
+import {rules} from "../types/models/rules.js";
+import {db} from "../db.js";
+import {AddOrDeleteBody} from "../types/interfaces/RequestBody.js";
+import {and, eq} from "drizzle-orm";
+
+export const addRule = async (toAdd: AddOrDeleteBody) => {
+    await db.transaction(async (trx) => {
+        await trx.insert(rules).values(
+            toAdd.values.map((v) => ({type: toAdd.type, value: v, mode: toAdd.mode})),
+        );
+    });
 };
 
-export const deleteRule = async (type: string, value: string, mode: string, client: any) => {
-    const sql = `
-        DELETE FROM rules
-        WHERE type = $1 AND value = $2 AND mode = $3
-        RETURNING *;
-    `;
-    const result = await client.query(sql, [type, value, mode]);
-    return result.rowCount > 0;
+export const deleteRule = async (toDelete: AddOrDeleteBody) => {
+
+    await db.transaction(async (trx) => {
+        const rows = await Promise.all(
+            toDelete.values.map(v =>
+                trx
+                    .delete(rules)
+                    .where(and(eq(rules.type, toDelete.type), eq(rules.value, v), eq(rules.mode, toDelete.mode)))
+                    .returning()
+            )
+        );
+    })
+
 };
 
 
-export const getAllRules = async (pool) => {
+export const getAllRules = async () => {
     const sql = `
         SELECT id, type, mode, value
         FROM rules
     `;
-    const result = await pool.query(sql);
-    return result.rows;
+    const result = await db.select().from(rules);
+    return result.;
 };
 
 export const toggleRule = async (client, id, type, mode, active) => {

@@ -7,3 +7,12 @@ export class BadRequestError extends Error {
         this.statusCode = 400;
     }
 }
+
+export class ConflictError extends Error {
+    statusCode: number;
+
+    constructor(message: string) {
+        super('Conflict: ' + message);
+        this.statusCode = 409;
+    }
+}
