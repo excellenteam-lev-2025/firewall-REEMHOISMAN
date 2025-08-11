@@ -2,6 +2,8 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
+dotenv.config();
+
 const Schema = z.object({
     PORT: z.string().refine((v) => {
         const n = Number(v);

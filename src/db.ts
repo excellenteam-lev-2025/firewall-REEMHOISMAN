@@ -1,15 +1,17 @@
-import { Pool } from 'pg';
-import {DB_URI} from './config/env.js'
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import fs from 'fs';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { DB_URI } from './config/env.js';
 
-import { drizzle } from "drizzle-orm/node-postgres"
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
+// db connection
 export const db = drizzle(DB_URI);
 
-
 export async function initDb() {
-    await migrate(db, { migrationsFolder: 'drizzle' });
+    // קובעים תמיד את הנתיב היחסי לשורש הפרויקט
+    const migrationsFolder = path.join(__dirname, '../../drizzle');
+    await migrate(db, { migrationsFolder });
 }
-
-

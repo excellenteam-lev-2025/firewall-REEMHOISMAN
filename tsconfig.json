@@ -3,6 +3,7 @@
     // File Layout
     "rootDir": "./src",
     "outDir": "./dist",
+    "skipLibCheck": true,
 
     // Environment Settings
     "module": "nodenext",

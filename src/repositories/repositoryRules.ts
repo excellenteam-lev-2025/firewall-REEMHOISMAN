@@ -1,9 +1,9 @@
 import {rules} from "../types/models/rules.js";
 import {db} from "../db.js";
-import {AddOrDeleteBody} from "../types/interfaces/RequestBody.js";
-import {and, eq} from "drizzle-orm";
+import {Data, UpdateData, UpdateReqBody} from "../types/interfaces/RequestBody.js";
+import {and, eq, inArray} from "drizzle-orm";
 
-export const addRule = async (toAdd: AddOrDeleteBody) => {
+export const addRule = async (toAdd: Data) => {
     await db.transaction(async (trx) => {
         await trx.insert(rules).values(
             toAdd.values.map((v) => ({type: toAdd.type, value: v, mode: toAdd.mode})),
@@ -11,7 +11,7 @@ export const addRule = async (toAdd: AddOrDeleteBody) => {
     });
 };
 
-export const deleteRule = async (toDelete: AddOrDeleteBody) => {
+export const deleteRule = async (toDelete: Data) => {
 
     await db.transaction(async (trx) => {
         const rows = await Promise.all(
@@ -28,24 +28,16 @@ export const deleteRule = async (toDelete: AddOrDeleteBody) => {
 
 
 export const getAllRules = async () => {
-    const sql = `
-        SELECT id, type, mode, value
-        FROM rules
-    `;
-    const result = await db.select().from(rules);
-    return result.;
+    return db.select().from(rules);
 };
 
-export const toggleRule = async (client, id, type, mode, active) => {
-    const sql = `
-        UPDATE rules
-        SET active = $1
-        WHERE id = $2 AND type = $3 AND mode = $4
-        RETURNING id, value, active
-    `;
-    const params = [active, id, type, mode];
-    const { rows } = await client.query(sql, params);
-    return rows[0];
+export const toggleRules = async (trx:any, toUpdate:Data) => {
+    if (!Array.isArray(toUpdate.ids) ||!toUpdate.ids.length)  return Promise.resolve([]);
+    return trx
+        .update(rules)
+        .set({ active : toUpdate.active })
+        .where(and(eq(rules.type, toUpdate.type), eq(rules.mode, toUpdate.mode), inArray(rules.id, toUpdate.ids)))
+        .returning({ id: rules.id, active: rules.active, type: rules.type, mode: rules.mode });
 };
 
 
