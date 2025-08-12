@@ -22,7 +22,7 @@ const prodFormat = winston.format.combine(
 function initLogger(): winston.Logger {
     if (logger) return logger;
 
-    const isDev = LOG_CONFIG.NODE_ENV === "development";
+    const isDev = LOG_CONFIG.NODE_ENV === "dev";
     const transports: winston.transport[] = [];
 
     if (isDev) {

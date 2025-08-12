@@ -4,9 +4,8 @@ import { z } from 'zod';
 
 dotenv.config();
 
-// define schema for all environment variables
 const baseSchema = z.object({
-    NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+    NODE_ENV: z.enum(["dev", "prod", "test"]).default("dev"),
     PORT: z.string().refine((v) => {
         const n = Number(v);
         return Number.isInteger(n) && n >= 1 && n <= 65535;
@@ -27,13 +26,17 @@ const baseSchema = z.object({
     LOG_DIR: z.string().optional(),
     LOG_FILE: z.string().optional(),
 }).transform((env) => {
-    const suffix =
-        env.NODE_ENV === "production" ? "_prod" : "_dev";
+    const fullDbName = `${env.DB_NAME}_${env.NODE_ENV}`;
+    const dbUri = `postgresql://${encodeURIComponent(env.DB_USER)}:${encodeURIComponent(env.DB_PASSWORD)}@${env.DB_HOST}:${env.DB_PORT}/${fullDbName}`;
+
     return {
         ...env,
-        DB_NAME: `${env.DB_NAME}${suffix}`,
+        DB_NAME: fullDbName,
+        DB_URI: dbUri
     };
-});
+}).refine((env) => {
+    return /^postgresql:\/\/.+:.+@.+:\d+\/.+$/.test(env.DB_URI);
+}, { message: 'DB_URI is not a valid PostgresSQL connection string' });
 
 const parsed = baseSchema.safeParse(process.env);
 if (!parsed.success) {
@@ -46,23 +49,16 @@ if (!parsed.success) {
 
 export const ENV = parsed.data;
 
-export const DB_URI =
-    `postgresql://${encodeURIComponent(ENV.DB_USER)}:${encodeURIComponent(ENV.DB_PASSWORD)}` +
-    `@${ENV.DB_HOST}:${ENV.DB_PORT}/${ENV.DB_NAME}`
-
-// log configuration
 export const LOG_CONFIG = {
     NODE_ENV: ENV.NODE_ENV,
-    LOG_LEVEL: ENV.LOG_LEVEL ?? (ENV.NODE_ENV === "production" ? "info" : "debug"),
+    LOG_LEVEL: ENV.LOG_LEVEL ?? (ENV.NODE_ENV === "prod" ? "info" : "debug"),
     LOG_DIR: ENV.LOG_DIR ?? "logs",
     LOG_FILE: ENV.LOG_FILE ?? "app.log",
 } as const;
 
-// error constants
-export const ERRORS ={
+export const ERRORS = {
     MISSING_VALS_OR_MODE_ERR: 'missing "values" / "mode"',
     MISSING_TYPE: 'missing "url" / "ip" / "port"',
     MODE_NAME_ERR: 'mode can be "blacklist" / "whitelist"',
     VALS_ERR: 'expected an array of valid',
-}
-
+};

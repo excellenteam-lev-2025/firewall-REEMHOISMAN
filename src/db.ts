@@ -1,24 +1,27 @@
-import path from 'path';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
+// src/db.ts
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { DB_URI, ENV } from './config/env.js';
-import { logger } from './config/Logger.js';
+import { Pool } from 'pg';
+import { ENV } from './config/env.js';
 
-export const db = drizzle(DB_URI);
+const pool = new Pool({ connectionString: ENV.DB_URI });
+export const db = drizzle(pool);
 
 export async function initDb() {
-    const migrationsFolder = path.join(process.cwd(), 'drizzle');
-    const interval = Number(ENV.DB_CONNECTION_INTERVAL) || 5000;
+    const interval = Number(ENV.DB_CONNECTION_INTERVAL) || 3000;
+    const maxAttempts = 5;
 
-    while (true) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-            await migrate(db, { migrationsFolder });
-            console.info('migrations complete ✅');
-            break;
+            await pool.query('SELECT 1'); // בדיקת חיבור פשוטה
+            console.info('Database connection established ✅');
+            return;
         } catch (err) {
-            console.error(`❌ database migration failed: ${(err as Error).message}`);
-            console.info(`Retrying in ${interval}...`);
-            await new Promise((resolve) => setTimeout(resolve, interval));
+            if (attempt === maxAttempts) {
+                console.error('❌ Failed to connect to DB after retries:', (err as Error).message);
+                throw err;
+            }
+            console.warn(`DB connect failed (${attempt}/${maxAttempts}). Retrying in ${interval}ms...`);
+            await new Promise(res => setTimeout(res, interval));
         }
     }
 }
