@@ -1,25 +1,24 @@
-import { Pool } from 'pg';
-import dotenv from 'dotenv';
-import fs from 'fs';
+import path from 'path';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { DB_URI, ENV } from './config/env.js';
+import { logger } from './config/Logger.js';
 
-dotenv.config();
+export const db = drizzle(DB_URI);
 
-export const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: parseInt(process.env.DB_PORT || "5432"),
-});
+export async function initDb() {
+    const migrationsFolder = path.join(process.cwd(), 'drizzle');
+    const interval = Number(ENV.DB_CONNECTION_INTERVAL) || 5000;
 
-export async function initializeDatabase() {
-    try {
-        const schemaSql = fs.readFileSync('init.sql', 'utf8');
-        await pool.query(schemaSql);
-        console.log('Database schema initialized successfully.');
-    } catch (err) {
-        console.error('Error initializing database schema:', err);
+    while (true) {
+        try {
+            await migrate(db, { migrationsFolder });
+            console.info('migrations complete ✅');
+            break;
+        } catch (err) {
+            console.error(`❌ database migration failed: ${(err as Error).message}`);
+            console.info(`Retrying in ${interval}...`);
+            await new Promise((resolve) => setTimeout(resolve, interval));
+        }
     }
 }
-
-

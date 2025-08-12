@@ -1,9 +1,8 @@
-
-export class BadRequestError extends Error {
+export class HttpError extends Error {
     statusCode: number;
 
-    constructor(message: string) {
-        super('Invalid request body: ' + message);
-        this.statusCode = 400;
+    constructor(status: number, message: string) {
+        super('Error: ' + message);
+        this.statusCode = status;
     }
 }

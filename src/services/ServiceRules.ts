@@ -1,55 +1,39 @@
-import {addRule, deleteRule, getAllRules, toggleRule} from '../repositories/repositoryRules.js';
-import { pool } from '../db.js'
+import {addRules, deleteRule, getAllRules, toggleRules} from '../repositories/repositoryRules.js';
+import { db } from '../db.js'
 import {NextFunction, Request, Response} from "express";
+import {Data} from "../types/interfaces/RequestBody.js";
+import {HttpError} from "../utils/errors.js";
 
 export const addRuleService = async (req:Request, res:Response, next:NextFunction) => {
-    const { values, mode, type} = req.body;
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
-        for (const value of values) {
-            const added = await addRule(type, value, mode, client);
-            if (!added) {
-                await client.query('ROLLBACK');
-                return res.status(409).json({ error: `Value: ${value} already exists` });
-            }
-        }
-        await client.query('COMMIT');
-        res.status(201).json({ type, mode, values, status: 'success' });
+        await db.transaction(async (trx) => {
+            await addRules(trx, req.body);
+        });
+        res.status(201).json({ ...req.body, status: 'success' });
+
     } catch (err) {
-        await client.query('ROLLBACK');
         next(err);
-    } finally {
-        client.release();
     }
 };
 
 
 export const deleteRuleService = async (req: Request, res: Response, next: NextFunction) => {
-    const { values, mode, type } = req.body;
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
-        for (const value of values) {
-            const deleted = await deleteRule(type, value, mode, client);
-            if (!deleted) {
-                await client.query('ROLLBACK');
-                return res.status(404).json({ error: `Value "${value}" not found` });
+        await db.transaction(async (trx) => {
+            const deleted = await deleteRule(trx, req.body);
+            if (!deleted.length){
+                throw new HttpError(404, 'cannot find one of the rules');
             }
-        }
-        await client.query('COMMIT');
-        res.status(200).json({ type, mode, values, status: 'success' });
+        });
+        res.status(200).json({ ...req.body, status: 'success' });
     } catch (err) {
-        await client.query('ROLLBACK');
         next(err);
-    } finally {
-        client.release();
     }
 };
 
 export const getAllRulesService = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const rows = await getAllRules(pool);
+        const rows = await getAllRules();
 
         const data = {
             ips: { blacklist: [], whitelist: [] },
@@ -75,31 +59,29 @@ export const getAllRulesService = async (req: Request, res: Response, next: Next
 };
 
 
-
-export const toggleRuleStatusService= async (req: Request, res: Response, next: NextFunction) => {
-    const client = await pool.connect();
+export const toggleRuleStatusService = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        await client.query('BEGIN');
-        const updated = [];
+        const updated:any = []
+        await db.transaction(async (trx) => {
 
-        for (const [typeKey, p] of Object.entries(req.body)) {
-            const params = p as { ids: number[]; mode: string; active: boolean };
-            if (!params || !Array.isArray(params.ids)) continue;
-            const { mode, ids, active } = params;
-            for (const id of ids) {
-                const result = await toggleRule(client, id, typeKey.slice(0, -1), mode, active);
-                if (result) updated.push(result);
+        for (const payload of Object.values(req.body) as Partial<Data>[]) {
+
+            if (!payload || Object.keys(payload).length === 0) continue;
+
+            const rows = await toggleRules(trx, payload as Data);
+            if (rows.length !== payload.ids?.length) {
+                throw new HttpError(404, "One or more rules not found");
             }
+            updated.push(...rows);
         }
+        });
+        console.info(`Rules updated: ${JSON.stringify(updated)}`);
+        return res.status(200).json({ updated });
 
-        await client.query('COMMIT');
-        res.json({ updated });
     } catch (err) {
-        await client.query('ROLLBACK');
-        next(err);
-    } finally {
-        client.release();
+        return next(err);
     }
 };
+
 
 

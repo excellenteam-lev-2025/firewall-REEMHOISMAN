@@ -1,44 +1,56 @@
-export const addRule = async (type: string, value: string, mode: string, client:any) => {
-    const sql = `
-        INSERT INTO rules (type, value, mode)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (value) DO NOTHING
-        RETURNING *;
-    `;
-    const result = await client.query(sql, [type, value, mode]);
-    return result.rows[0];
+import {rules} from "../types/models/rules.js";
+import {db} from "../db.js";
+import {Data} from "../types/interfaces/RequestBody.js";
+import {and, eq, inArray} from "drizzle-orm";
+import {HttpError} from "../utils/errors.js";
+
+export const addRules = async (trx:any, toAdd: Data) => {
+    const rows = toAdd.values.map((v) => ({
+        type: toAdd.type,
+        value: v,
+        mode: toAdd.mode,
+    }));
+    const inserted = await trx
+        .insert(rules)
+        .values(rows)
+        .onConflictDoNothing({ target: rules.value })
+        .returning({ id: rules.id });
+
+    if (inserted.length !== toAdd.values.length) {
+        throw new HttpError(409, "One or more rules already exist (conflict).");
+    }
 };
 
-export const deleteRule = async (type: string, value: string, mode: string, client: any) => {
-    const sql = `
-        DELETE FROM rules
-        WHERE type = $1 AND value = $2 AND mode = $3
-        RETURNING *;
-    `;
-    const result = await client.query(sql, [type, value, mode]);
-    return result.rowCount > 0;
+export const deleteRule = async (trx:any, toDelete: Data) => {
+    return trx
+        .delete(rules)
+        .where(
+            and(
+                eq(rules.type, toDelete.type),
+                eq(rules.mode, toDelete.mode),
+                inArray(rules.value, toDelete.values)
+            )
+        )
+        .returning();
+
 };
 
 
-export const getAllRules = async (pool) => {
-    const sql = `
-        SELECT id, type, mode, value
-        FROM rules
-    `;
-    const result = await pool.query(sql);
-    return result.rows;
+export const getAllRules = async () => {
+    return db.select().from(rules);
 };
 
-export const toggleRule = async (client, id, type, mode, active) => {
-    const sql = `
-        UPDATE rules
-        SET active = $1
-        WHERE id = $2 AND type = $3 AND mode = $4
-        RETURNING id, value, active
-    `;
-    const params = [active, id, type, mode];
-    const { rows } = await client.query(sql, params);
-    return rows[0];
+export const toggleRules = async (trx:any, toUpdate:Data) => {
+    return trx
+        .update(rules)
+        .set({ active: toUpdate.active })
+        .where(
+            and(
+                eq(rules.mode, toUpdate.mode),
+                inArray(rules.id, toUpdate.ids)
+            )
+        )
+        .returning({ id: rules.id, active: rules.active, type: rules.type, mode: rules.mode });
 };
 
 

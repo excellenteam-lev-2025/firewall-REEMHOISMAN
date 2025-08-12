@@ -3,6 +3,7 @@
     // File Layout
     "rootDir": "./src",
     "outDir": "./dist",
+    "skipLibCheck": true,
 
     // Environment Settings
     "module": "nodenext",
@@ -13,8 +14,7 @@
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-
-
-
-  }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "drizzle.config.ts", "drizzle/**"]
 }
