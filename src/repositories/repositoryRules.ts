@@ -50,7 +50,7 @@ export const toggleRules = async (trx:any, toUpdate:Data) => {
                 inArray(rules.id, toUpdate.ids)
             )
         )
-        .returning({ id: rules.id, active: rules.active, type: rules.type, mode: rules.mode });
+        .returning({ id: rules.id, value:rules.value, active: rules.active });
 };
 
 

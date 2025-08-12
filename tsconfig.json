@@ -9,6 +9,8 @@
     "module": "nodenext",
     "target": "esnext",
     "types": ["node"],
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
 
     // Other Outputs
     "sourceMap": true,
