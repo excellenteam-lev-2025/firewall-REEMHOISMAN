@@ -3,7 +3,6 @@ import { db } from '../db.js'
 import {NextFunction, Request, Response} from "express";
 import {Data} from "../types/interfaces/RequestBody.js";
 import {HttpError} from "../utils/errors.js";
-import {logger} from "../config/Logger.js";
 
 export const addRuleService = async (req:Request, res:Response, next:NextFunction) => {
     try {
@@ -76,7 +75,7 @@ export const toggleRuleStatusService = async (req: Request, res: Response, next:
             updated.push(...rows);
         }
         });
-        logger.info(`Rules updated: ${JSON.stringify(updated)}`);
+        console.info(`Rules updated: ${JSON.stringify(updated)}`);
         return res.status(200).json({ updated });
 
     } catch (err) {

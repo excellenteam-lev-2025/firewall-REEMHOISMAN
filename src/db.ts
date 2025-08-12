@@ -13,11 +13,11 @@ export async function initDb() {
     while (true) {
         try {
             await migrate(db, { migrationsFolder });
-            logger.info('migrations complete ✅');
+            console.info('migrations complete ✅');
             break;
         } catch (err) {
-            logger.error(`❌ database migration failed: ${(err as Error).message}`);
-            logger.info(`Retrying in ${interval}...`);
+            console.error(`❌ database migration failed: ${(err as Error).message}`);
+            console.info(`Retrying in ${interval}...`);
             await new Promise((resolve) => setTimeout(resolve, interval));
         }
     }

@@ -1,18 +1,18 @@
 import { Request, Response, NextFunction } from "express";
 import validator from 'validator';
 import {HttpError} from "../utils/errors.js";
-import {MISSING_TYPE, MISSING_VALS_OR_MODE_ERR, MODE_NAME_ERR, VALS_ERR} from "../config/env.js";
+import {ERRORS} from "../config/env.js";
 
 
 export const isModeValid = (req: Request, res: Response, next: NextFunction) => {
     const { mode } = req.body || {};
 
     if (!mode) {
-        return next(new HttpError(400, MISSING_VALS_OR_MODE_ERR));
+        return next(new HttpError(400, ERRORS.MISSING_VALS_OR_MODE_ERR));
     }
 
     if (!['blacklist', 'whitelist'].includes(mode)) {
-        return next(new HttpError(400, MODE_NAME_ERR));
+        return next(new HttpError(400, ERRORS.MODE_NAME_ERR));
     }
     next();
 };
@@ -21,7 +21,7 @@ export const isModeValid = (req: Request, res: Response, next: NextFunction) => 
 export const isIpsValid = (req: Request, res: Response, next: NextFunction) => {
     const { values } = req.body;
     if (!values.every((val:string)=>validator.isIP(val, 4))){
-        return next(new HttpError(400, VALS_ERR + ' IP addresses'));
+        return next(new HttpError(400, ERRORS.VALS_ERR + ' IP addresses'));
     }
     req.body.type = 'ip';
     next();
@@ -32,7 +32,7 @@ export const isUrlsValid = (req: Request, res: Response, next: NextFunction) => 
     const { values } = req.body;
 
     if (!values.every((val:string)=> validator.isURL(val))){
-        return next(new HttpError(400, VALS_ERR + ' URL addresses'));
+        return next(new HttpError(400, ERRORS.VALS_ERR + ' URL addresses'));
     }
 
     req.body.type = 'url';
@@ -43,7 +43,7 @@ export const isPortsValid = (req: Request, res: Response, next: NextFunction) =>
     const { values } = req.body;
 
     if (!Array.isArray(values) || !values.every((val: number) => typeof val === 'number' && val >= 0 && val <= 65535)) {
-        return next(new HttpError(400, VALS_ERR + ' Ports'));
+        return next(new HttpError(400, ERRORS.VALS_ERR + ' Ports'));
     }
 
     req.body.type = 'port';
@@ -55,7 +55,7 @@ export const isToggleValid = (req: Request, res: Response, next: NextFunction) =
     const {urls, ports, ips} = req.body;
 
     if (!urls || !ports || !ips) {
-        return next(new HttpError(400, MISSING_TYPE));
+        return next(new HttpError(400, ERRORS.MISSING_TYPE));
     }
 
     for (const [type, params] of Object.entries({urls, ports, ips})) {
