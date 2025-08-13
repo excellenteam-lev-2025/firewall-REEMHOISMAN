@@ -8,16 +8,15 @@
     // Environment Settings
     "module": "nodenext",
     "target": "esnext",
-    "types": ["node"],
+    "types": ["node", "jest"],
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "allowImportingTsExtensions:": true,
 
     // Other Outputs
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", "drizzle.config.ts", "drizzle/**"]
 }

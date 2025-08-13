@@ -1,8 +1,6 @@
 // src/config/env.ts
-import dotenv from 'dotenv';
+import 'dotenv/config';
 import { z } from 'zod';
-
-dotenv.config();
 
 const baseSchema = z.object({
     NODE_ENV: z.enum(["dev", "prod", "test"]).default("dev"),
