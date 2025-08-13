@@ -11,6 +11,7 @@
     "types": ["node"],
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "allowImportingTsExtensions:": true,
 
     // Other Outputs
     "sourceMap": true,

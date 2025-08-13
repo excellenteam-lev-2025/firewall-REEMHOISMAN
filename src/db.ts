@@ -3,16 +3,16 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { ENV } from './config/env.js';
 
-const pool = new Pool({ connectionString: ENV.DB_URI });
+export const pool = new Pool({ connectionString: ENV.DB_URI });
 export const db = drizzle(pool);
 
-export async function initDb() {
+export async function connectToDb() {
     const interval = Number(ENV.DB_CONNECTION_INTERVAL) || 3000;
     const maxAttempts = 5;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-            await pool.query('SELECT 1'); // בדיקת חיבור פשוטה
+            await pool.query('SELECT 1');
             console.info('Database connection established ✅');
             return;
         } catch (err) {

@@ -1,17 +1,21 @@
+// drizzle.config.ts
+import { defineConfig } from 'drizzle-kit';
 import * as dotenv from 'dotenv';
-import {defineConfig} from "drizzle-kit";
 
-dotenv.config();
+// טוען את ה-.env
+dotenv.config({ path: '.env' });
+
+// מייבא ישירות את ה-ENV שלך מ-env.ts
+// חשוב: לשים סיומת .ts כדי ש-ts-node/tsx יוכל לטעון את הקובץ
+import { ENV } from './src/config/env.ts';
 
 export default defineConfig({
-    out: "./drizzle",
-    dialect: "postgresql",
-    schema: "./src/types/models/rules.ts",
+    out: './drizzle',
+    dialect: 'postgresql',
+    schema: './src/types/models/rules.ts',
     dbCredentials: {
-        url: process.env.DB_URI,
+        url: ENV.DB_URI, // אותו DB_URI שאתה מייצר ב-env.ts
     },
-
     strict: true,
     verbose: true,
 });
-
