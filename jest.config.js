@@ -3,16 +3,17 @@ export default {
     testEnvironment: 'node',
     extensionsToTreatAsEsm: ['.ts'],
     moduleNameMapper: {
-        '^(\\.{1,2}/.*)\\.js$': '$1' // נדרש ל-module=nodenext
+        '^(\\.{1,2}/.*)\\.js$': '$1'
     },
-    transform: {
-        '^.+\\.ts$': [
-            'ts-jest',
-            { useESM: true }
-        ]
-    },
-    testMatch: ['<rootDir>/**/*.test.ts'], // 👈 ודא ש-Jest אוסף את הטסטים מהתיקייה
-    roots: ['<rootDir>/src/tests'],
-
-    setupFiles: ['dotenv/config'] // 👈 יטען .env לפני כל טסט
+    testMatch: ['**/src/tests/**/*.test.ts'],
+    testPathIgnorePatterns: [],
+    collectCoverageFrom: [
+        'src/**/*.ts',
+        '!src/tests/**',
+        '!src/scripts/**'
+    ],
+    forceExit: true,
+    silent: true,
+    verbose: false,
+    detectOpenHandles: true
 };

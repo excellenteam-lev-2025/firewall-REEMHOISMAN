@@ -2,7 +2,7 @@
 import fs from "fs";
 import path from "path";
 import winston from "winston";
-import { LOG_CONFIG } from "./env.js";
+import { ENV } from "./env.js";
 
 let logger: winston.Logger;
 
@@ -22,16 +22,16 @@ const prodFormat = winston.format.combine(
 function initLogger(): winston.Logger {
     if (logger) return logger;
 
-    const isDev = LOG_CONFIG.NODE_ENV === "dev";
+    const isDev = ENV.NODE_ENV === "dev";
     const transports: winston.transport[] = [];
 
     if (isDev) {
         transports.push(new winston.transports.Console());
     } else {
-        fs.mkdirSync(LOG_CONFIG.LOG_DIR, { recursive: true });
+        fs.mkdirSync(ENV.LOG_DIR, { recursive: true });
         transports.push(
             new winston.transports.File({
-                filename: path.join(LOG_CONFIG.LOG_DIR, LOG_CONFIG.LOG_FILE),
+                filename: path.join(ENV.LOG_DIR, ENV.LOG_FILE),
                 maxsize: 10 * 1024 * 1024,
                 maxFiles: 5
             })
@@ -39,13 +39,13 @@ function initLogger(): winston.Logger {
     }
 
     logger = winston.createLogger({
-        level: LOG_CONFIG.LOG_LEVEL,
+        level: ENV.LOG_LEVEL,
         format: isDev ? devFormat : prodFormat,
         transports
     });
 
     patchConsole(logger);
-    logger.info(`logger initialized (${LOG_CONFIG.NODE_ENV}) → ${isDev ? "console" : "file"}`);
+    logger.info(`logger initialized (${ENV.NODE_ENV}) → ${isDev ? "console" : "file"}`);
 
     return logger;
 }

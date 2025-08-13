@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import validator from 'validator';
 import {HttpError} from "../utils/errors.js";
 import {ERRORS} from "../config/env.js";
+import { Mode } from "../types/common.js";
 
 
 export const isModeValid = (req: Request, res: Response, next: NextFunction) => {
@@ -11,7 +12,8 @@ export const isModeValid = (req: Request, res: Response, next: NextFunction) => 
         return next(new HttpError(400, ERRORS.MISSING_VALS_OR_MODE_ERR));
     }
 
-    if (!['blacklist', 'whitelist'].includes(mode)) {
+    const validModes: Mode[] = ['blacklist', 'whitelist'];
+    if (!validModes.includes(mode)) {
         return next(new HttpError(400, ERRORS.MODE_NAME_ERR));
     }
     next();
@@ -63,7 +65,8 @@ export const isToggleValid = (req: Request, res: Response, next: NextFunction) =
             if (!Array.isArray(params.ids) || !params.mode || typeof params.active !== 'boolean') {
                 return next(new HttpError(400,`Invalid or missing fields for ${type}`));
             }
-            if (!['blacklist', 'whitelist'].includes(params.mode)) {
+            const validModes: Mode[] = ['blacklist', 'whitelist'];
+            if (!validModes.includes(params.mode)) {
                 return next(new HttpError(400, `Invalid mode for ${type}`));
             }
         }

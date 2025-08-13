@@ -3,6 +3,7 @@ import { db } from '../db.js'
 import {NextFunction, Request, Response} from "express";
 import {Data} from "../types/interfaces/RequestBody.js";
 import {HttpError} from "../utils/errors.js";
+import { RuleType } from "../types/common.js";
 
 export const addRuleService = async (req:Request, res:Response, next:NextFunction) => {
     try {
@@ -42,11 +43,12 @@ export const getAllRulesService = async (req: Request, res: Response, next: Next
         };
 
         for (const row of rows) {
-            if (row.type === 'ip') {
+            const ruleType: RuleType = row.type as RuleType;
+            if (ruleType === 'ip') {
                 data.ips[row.mode].push({ id: row.id, value: row.value });
-            } else if (row.type === 'url') {
+            } else if (ruleType === 'url') {
                 data.urls[row.mode].push({ id: row.id, value: row.value });
-            } else if (row.type === 'port') {
+            } else if (ruleType === 'port') {
                 data.ports[row.mode].push({ id: row.id, value: Number(row.value) });
             }
         }

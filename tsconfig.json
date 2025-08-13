@@ -1,22 +1,15 @@
 {
   "compilerOptions": {
-    // File Layout
-    "rootDir": "./src",
+    "target": "es2020",
+    "module": "esnext",
     "outDir": "./dist",
-    "skipLibCheck": true,
-
-    // Environment Settings
-    "module": "nodenext",
-    "target": "esnext",
-    "types": ["node", "jest"],
+    "rootDir": "./src",
+    "strict": false,
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-
-    // Other Outputs
-    "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
+    "skipLibCheck": true,
+    "types": ["node", "jest"],
+    "moduleResolution": "node"
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"],
-  "exclude": ["node_modules", "drizzle.config.ts", "drizzle/**"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

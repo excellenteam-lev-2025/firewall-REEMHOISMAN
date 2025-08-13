@@ -1,15 +1,17 @@
 
+import { Mode, RuleType } from '../common.js';
+
 export interface Data {
-    values: string[],
-    mode: string,
-    type: string;
-    ids?: number[]
+    values: string[];
+    mode: Mode;
+    type: RuleType;
+    ids?: number[];
     active?: boolean;
 }
 
 export interface UpdateData {
     ids: number[];
-    mode: string;
+    mode: Mode;
     active: boolean;
 }
 

@@ -2,9 +2,8 @@ import { faker } from '@faker-js/faker';
 import { rules } from '../types/models/rules.js';
 import { connectToDb, db, pool } from '../db.js';
 import '../config/Logger.js';
+import { Mode, RuleType } from '../types/common.js';
 
-type Mode = 'blacklist' | 'whitelist';
-type RuleType = 'ip' | 'url' | 'port';
 const MODES: Mode[] = ['blacklist', 'whitelist'];
 
 const genIps = (n: number) => {
