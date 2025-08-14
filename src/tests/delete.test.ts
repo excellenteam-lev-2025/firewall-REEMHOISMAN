@@ -6,7 +6,7 @@ import app from '../app.js';
 describe('DELETE Endpoint', () => {
     
     test('Delete rule', async () => {
-        const ip = '192.168.1.1';
+        const ip = '10.0.0.100';
         
         // add rule req
         await request(app)

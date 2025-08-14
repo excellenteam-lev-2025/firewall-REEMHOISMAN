@@ -6,7 +6,8 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "dev": "tsx src/app.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "seed": "tsx src/scripts/mock_data_population.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

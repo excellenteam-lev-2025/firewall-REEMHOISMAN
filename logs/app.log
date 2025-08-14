@@ -832,3 +832,114 @@
 {"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-13T23:48:28.097Z"}
 {"level":"info","message":"Rules updated: [{\"id\":612,\"value\":\"10.10.10.10\",\"active\":false}]","timestamp":"2025-08-13T23:48:28.191Z"}
 {"level":"info","message":"Happy flow completed successfully","timestamp":"2025-08-13T23:48:28.213Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:45:10.573Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:45:10.837Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:45:11.740Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:45:11.945Z"}
+{"level":"error","message":"error: database \"firewall\" does not exist","timestamp":"2025-08-14T11:45:11.964Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:45:12.953Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:45:13.012Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:45:15.353Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:45:15.431Z"}
+{"level":"error","message":"Error: Failed query: select \"id\", \"type\", \"value\", \"mode\", \"active\" from \"rules\"\nparams: ","timestamp":"2025-08-14T11:45:15.444Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:46:18.503Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:46:18.621Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:46:19.539Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:46:19.658Z"}
+{"level":"error","message":"Error: Failed query: select \"id\", \"type\", \"value\", \"mode\", \"active\" from \"rules\"\nparams: ","timestamp":"2025-08-14T11:46:19.672Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:46:20.236Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:46:20.305Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:46:21.056Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:46:21.156Z"}
+{"level":"error","message":"error: database \"firewall\" does not exist","timestamp":"2025-08-14T11:46:21.168Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:46:41.100Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:46:41.258Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:46:42.066Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:46:42.191Z"}
+{"level":"error","message":"error: database \"firewall\" does not exist","timestamp":"2025-08-14T11:46:42.204Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:46:42.669Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:46:42.762Z"}
+{"level":"error","message":"Error: Failed query: select \"id\", \"type\", \"value\", \"mode\", \"active\" from \"rules\"\nparams: ","timestamp":"2025-08-14T11:46:42.779Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:46:43.365Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:46:43.417Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:48:52.251Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:48:52.474Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:48:53.935Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:48:54.115Z"}
+{"level":"error","message":"error: database \"firewall_test\" does not exist","timestamp":"2025-08-14T11:48:54.137Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:48:56.775Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:48:56.822Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:48:59.226Z"}
+{"level":"warn","message":"DB connect failed (1/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:48:59.426Z"}
+{"level":"warn","message":"DB connect failed (2/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:48:59.438Z"}
+{"level":"warn","message":"DB connect failed (2/5). Retrying in 5000ms...","timestamp":"2025-08-14T11:48:59.456Z"}
+{"level":"error","message":"Error: Failed query: select \"id\", \"type\", \"value\", \"mode\", \"active\" from \"rules\"\nparams: ","timestamp":"2025-08-14T11:48:59.493Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:53:55.500Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T11:53:55.693Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T11:53:55.703Z"}
+{"level":"error","message":"Error: Error: expected an array of valid IP addresses","timestamp":"2025-08-14T11:53:55.984Z"}
+{"level":"error","message":"Error: Error: expected an array of valid Ports","timestamp":"2025-08-14T11:53:56.016Z"}
+{"level":"error","message":"Error: Error: One or more rules already exist (conflict).","timestamp":"2025-08-14T11:53:56.102Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:53:57.364Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T11:53:57.428Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T11:53:57.432Z"}
+{"level":"info","message":"Rules updated: [{\"id\":308,\"value\":\"10.10.10.10\",\"active\":false}]","timestamp":"2025-08-14T11:53:57.596Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:53:58.861Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T11:53:58.915Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T11:53:58.919Z"}
+{"level":"info","message":"Rules updated: [{\"id\":310,\"value\":\"192.168.1.1\",\"active\":false}]","timestamp":"2025-08-14T11:53:59.001Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:54:00.144Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T11:54:00.214Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T11:54:00.217Z"}
+{"level":"error","message":"Error: Error: One or more rules already exist (conflict).","timestamp":"2025-08-14T11:54:00.235Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:56:14.459Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T11:56:14.755Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T11:56:14.760Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:56:15.260Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T11:56:15.311Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T11:56:15.315Z"}
+{"level":"error","message":"Error: Error: expected an array of valid IP addresses","timestamp":"2025-08-14T11:56:15.494Z"}
+{"level":"error","message":"Error: Error: expected an array of valid Ports","timestamp":"2025-08-14T11:56:15.532Z"}
+{"level":"error","message":"Error: Error: One or more rules already exist (conflict).","timestamp":"2025-08-14T11:56:15.599Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:56:16.066Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T11:56:16.130Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T11:56:16.134Z"}
+{"level":"info","message":"Rules updated: [{\"id\":320,\"value\":\"10.10.10.10\",\"active\":false}]","timestamp":"2025-08-14T11:56:16.260Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T11:56:16.637Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T11:56:16.682Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T11:56:16.686Z"}
+{"level":"info","message":"Rules updated: [{\"id\":322,\"value\":\"192.168.1.1\",\"active\":false}]","timestamp":"2025-08-14T11:56:16.751Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T12:00:17.625Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T12:00:17.773Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T12:00:17.776Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T12:00:18.060Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T12:00:18.115Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T12:00:18.121Z"}
+{"level":"error","message":"Error: Error: expected an array of valid IP addresses","timestamp":"2025-08-14T12:00:18.294Z"}
+{"level":"error","message":"Error: Error: expected an array of valid Ports","timestamp":"2025-08-14T12:00:18.310Z"}
+{"level":"error","message":"Error: Error: One or more rules already exist (conflict).","timestamp":"2025-08-14T12:00:18.353Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T12:00:18.611Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T12:00:18.650Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T12:00:18.652Z"}
+{"level":"info","message":"Rules updated: [{\"id\":391,\"value\":\"10.10.10.10\",\"active\":false}]","timestamp":"2025-08-14T12:00:18.734Z"}
+{"level":"info","message":"logger initialized (test) → file","timestamp":"2025-08-14T12:00:18.966Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T12:00:18.999Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T12:00:19.002Z"}
+{"level":"info","message":"Rules updated: [{\"id\":393,\"value\":\"192.168.1.1\",\"active\":false}]","timestamp":"2025-08-14T12:00:19.045Z"}
+{"level":"info","message":"Logger initialized (test) → file","timestamp":"2025-08-14T12:05:46.564Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T12:05:46.823Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T12:05:46.829Z"}
+{"level":"info","message":"Logger initialized (test) → file","timestamp":"2025-08-14T12:05:48.334Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T12:05:48.388Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T12:05:48.392Z"}
+{"level":"error","message":"Error: Error: expected an array of valid IP addresses","timestamp":"2025-08-14T12:05:48.590Z"}
+{"level":"error","message":"Error: Error: expected an array of valid Ports","timestamp":"2025-08-14T12:05:48.621Z"}
+{"level":"error","message":"Error: Error: One or more rules already exist (conflict).","timestamp":"2025-08-14T12:05:48.696Z"}
+{"level":"info","message":"Logger initialized (test) → file","timestamp":"2025-08-14T12:05:49.749Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T12:05:49.804Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T12:05:49.808Z"}
+{"level":"info","message":"Rules updated: [{\"id\":402,\"value\":\"10.10.10.10\",\"active\":false}]","timestamp":"2025-08-14T12:05:49.918Z"}
+{"level":"info","message":"Logger initialized (test) → file","timestamp":"2025-08-14T12:05:51.365Z"}
+{"level":"info","message":"Database connection established ✅","timestamp":"2025-08-14T12:05:51.422Z"}
+{"level":"info","message":"Server is running on port 3000","timestamp":"2025-08-14T12:05:51.426Z"}
+{"level":"info","message":"Rules updated: [{\"id\":404,\"value\":\"192.168.1.1\",\"active\":false}]","timestamp":"2025-08-14T12:05:51.515Z"}

@@ -16,7 +16,8 @@ const envSchema = z.object({
     LOG_FILE: z.string().default("app.log"),
 }).transform((env) => ({
     ...env,
-    DB_URI: `postgresql://${encodeURIComponent(env.DB_USER)}:${encodeURIComponent(env.DB_PASSWORD)}@${env.DB_HOST}:${env.DB_PORT}/${env.DB_NAME}`
+    DB_NAME: `${env.DB_NAME}_${env.NODE_ENV === 'test' ? 'dev' : env.NODE_ENV}`,
+    DB_URI: `postgresql://${encodeURIComponent(env.DB_USER)}:${encodeURIComponent(env.DB_PASSWORD)}@${env.DB_HOST}:${env.DB_PORT}/${env.DB_NAME}_${env.NODE_ENV === 'test' ? 'dev' : env.NODE_ENV}`
 }));
 
 const result = envSchema.safeParse(process.env);
