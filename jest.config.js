@@ -13,7 +13,12 @@ export default {
         '!src/scripts/**'
     ],
     forceExit: true,
-    silent: true,
-    verbose: false,
-    detectOpenHandles: true
+    silent: false,
+    verbose: true,
+    detectOpenHandles: true,
+    transform: {
+        '^.+\\.ts$': ['ts-jest', {
+            useESM: true
+        }]
+    }
 };

@@ -38,6 +38,7 @@ class Database {
         return this.db;
     }
 
+
     /**
      * Gets the PostgreSsQL connection pool
      * @returns Pool
@@ -75,7 +76,6 @@ class Database {
             }
         }
     }
-
 }
 
 // Export the Database class

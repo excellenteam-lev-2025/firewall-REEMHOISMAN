@@ -1,8 +1,9 @@
 import { faker } from '@faker-js/faker';
 import { rules } from '../types/models/rules.js';
-import { connectToDb, db, pool } from '../db.js';
-import '../config/Logger.js';
 import { Mode, RuleType } from '../types/common.js';
+import '../config/Logger.js';
+import db from '../db';
+import Database from '../config/Database.js';
 
 const MODES: Mode[] = ['blacklist', 'whitelist'];
 
@@ -53,12 +54,12 @@ const seedDbMockData = async () => {
             .onConflictDoNothing({ target: [rules.value] });
     });
 
-    console.log('✅ Mock data populated');
+    console.log('Mock data populated');
 };
 
-connectToDb()
+Database.getInstance().connect()
     .then(seedDbMockData)
     .catch((e) => {
-        console.error('❌ Seeding failed:', e);
+        console.error('Seeding failed:', e);
         process.exit(1);
     });

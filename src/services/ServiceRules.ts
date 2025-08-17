@@ -1,5 +1,5 @@
 import {addRules, deleteRule, getAllRules, toggleRules} from '../repositories/repositoryRules.js';
-import { db } from '../db.js'
+import db from '../db.js';
 import {NextFunction, Request, Response} from "express";
 import {Data} from "../types/interfaces/RequestBody.js";
 import {HttpError} from "../utils/errors.js";

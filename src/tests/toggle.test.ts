@@ -1,33 +1,80 @@
+import { withData } from './testSetup.js';
 import request from 'supertest';
-import { db } from '../db.js';
 import { rules } from '../types/models/rules.js';
 import { eq } from 'drizzle-orm';
 import app from '../app.js';
 
+// test suite for put toggle endpoint
 describe('PUT Toggle Endpoint', () => {
     
-    beforeEach(async () => {
-        await db.delete(rules);
+    beforeEach(() => {
+        withData([
+            { id: 1, value: '192.168.1.1', type: 'ip', mode: 'blacklist', active: true },
+            { id: 2, value: '8080', type: 'port', mode: 'whitelist', active: true },
+            { id: 3, value: 'https://example.com', type: 'url', mode: 'blacklist', active: true }
+        ]);
     });
 
-    test('Toggle rule active state', async () => {
-        const ip = '192.168.1.1';
-        
-        // add rule req
-        await request(app)
-            .post('/api/firewall/ip')
-            .send({ values: [ip], mode: 'blacklist', type: 'ip' })
-            .expect(201);
-
-        // get rule id
-        const ruleData = await db.select().from(rules).where(eq(rules.value, ip));
-        const ruleId = ruleData[0].id;
-
-        // toggle the active status of the rule req
+    test('Toggle IP rule to inactive', async () => {
         await request(app)
             .put('/api/firewall/rules')
             .send({ 
-                ips: { ids: [ruleId], mode: 'blacklist', active: false },
+                ips: { ids: [1], mode: 'blacklist', active: false },
+                ports: {},
+                urls: {}
+            })
+            .expect(200);
+    });
+
+    test('Toggle IP rule to active', async () => {
+        await request(app)
+            .put('/api/firewall/rules')
+            .send({ 
+                ips: { ids: [1], mode: 'blacklist', active: true },
+                ports: {},
+                urls: {}
+            })
+            .expect(200);
+    });
+
+    test('Toggle port rule to inactive', async () => {
+        await request(app)
+            .put('/api/firewall/rules')
+            .send({ 
+                ips: {},
+                ports: { ids: [2], mode: 'whitelist', active: false },
+                urls: {}
+            })
+            .expect(200);
+    });
+
+    test('Toggle URL rule to inactive', async () => {
+        await request(app)
+            .put('/api/firewall/rules')
+            .send({ 
+                ips: {},
+                ports: {},
+                urls: { ids: [3], mode: 'blacklist', active: false }
+            })
+            .expect(200);
+    });
+
+    test('Toggle multiple rules at once', async () => {
+        await request(app)
+            .put('/api/firewall/rules')
+            .send({ 
+                ips: { ids: [1], mode: 'blacklist', active: false },
+                ports: { ids: [2], mode: 'whitelist', active: false },
+                urls: { ids: [3], mode: 'blacklist', active: false }
+            })
+            .expect(200);
+    });
+
+    test('Toggle with empty payload', async () => {
+        await request(app)
+            .put('/api/firewall/rules')
+            .send({ 
+                ips: {},
                 ports: {},
                 urls: {}
             })

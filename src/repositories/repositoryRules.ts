@@ -1,5 +1,5 @@
 import {rules} from "../types/models/rules.js";
-import {db} from "../db.js";
+import db from "../db.js";
 import {Data} from "../types/interfaces/RequestBody.js";
 import {and, eq, inArray} from "drizzle-orm";
 import {HttpError} from "../utils/errors.js";

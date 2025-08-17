@@ -1,5 +1,7 @@
 import express from 'express';
-import { connectToDb } from './db.js';
+import Database from './config/Database.js';
+
+const connectToDb = () => Database.getInstance().connect();
 import routerIP from "./routes/routerIP.js";
 import routerUrl from "./routes/routerUrl.js";
 import routerPort from "./routes/routerPort.js";
