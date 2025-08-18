@@ -1,16 +1,25 @@
-import 'dotenv/config';
+import Database from "../config/Database";
 
 // mocked database instance for testing
 const mockDb = {
-        select: jest.fn(),
-        insert: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        transaction: jest.fn()
+    select: jest.fn(),
+    insert: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    transaction: jest.fn()
 };
 
-// Mock the db
-jest.mock('../db.js', () => mockDb);
+
+// Mock the Database singleton
+jest.mock('../config/Database.js', () => {
+    return {
+        getInstance: jest.fn(() => ({
+            getDb: jest.fn(() => mockDb),
+            connect: jest.fn().mockResolvedValue(undefined)
+        }))
+    };
+});
+
 
 export { mockDb };
 

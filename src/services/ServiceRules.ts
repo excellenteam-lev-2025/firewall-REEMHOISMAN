@@ -1,5 +1,5 @@
 import {addRules, deleteRule, getAllRules, toggleRules} from '../repositories/repositoryRules.js';
-import db from '../db.js';
+import Database from '../config/Database.js';
 import {NextFunction, Request, Response} from "express";
 import {Data} from "../types/interfaces/RequestBody.js";
 import {HttpError} from "../utils/errors.js";
@@ -7,6 +7,7 @@ import { RuleType } from "../types/common.js";
 
 export const addRuleService = async (req:Request, res:Response, next:NextFunction) => {
     try {
+        const db = Database.getInstance().getDb();
         await db.transaction(async (trx) => {
             await addRules(trx, req.body);
         });
@@ -20,6 +21,7 @@ export const addRuleService = async (req:Request, res:Response, next:NextFunctio
 
 export const deleteRuleService = async (req: Request, res: Response, next: NextFunction) => {
     try {
+        const db = Database.getInstance().getDb();
         await db.transaction(async (trx) => {
             const deleted = await deleteRule(trx, req.body);
             if (!deleted.length){
@@ -64,6 +66,7 @@ export const getAllRulesService = async (req: Request, res: Response, next: Next
 export const toggleRuleStatusService = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const updated:any = []
+        const db = Database.getInstance().getDb();
         await db.transaction(async (trx) => {
 
         for (const payload of Object.values(req.body) as Partial<Data>[]) {

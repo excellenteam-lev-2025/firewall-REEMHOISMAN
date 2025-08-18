@@ -29,9 +29,9 @@ app.use((err: any, req: any, res: any, next: any) => {
     res.status(err.statusCode || 500).json({ error: err.message || 'Internal Server Error' });
 });
 
+export default app;
+
 // connect DB and start server
 connectToDb().then(() => {
     app.listen(ENV.PORT, () => console.info(`Server is running on port ${ENV.PORT}`));
 });
-
-export default app

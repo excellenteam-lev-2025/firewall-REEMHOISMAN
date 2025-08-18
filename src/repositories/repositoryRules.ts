@@ -1,5 +1,5 @@
 import {rules} from "../types/models/rules.js";
-import db from "../db.js";
+import Database from "../config/Database.js";
 import {Data} from "../types/interfaces/RequestBody.js";
 import {and, eq, inArray} from "drizzle-orm";
 import {HttpError} from "../utils/errors.js";
@@ -37,6 +37,7 @@ export const deleteRule = async (trx:any, toDelete: Data) => {
 
 
 export const getAllRules = async () => {
+    const db = Database.getInstance().getDb();
     return db.select().from(rules);
 };
 
