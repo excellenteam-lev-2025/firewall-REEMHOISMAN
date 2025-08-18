@@ -5,7 +5,7 @@ const routerUrl = Router();
 
 
 routerUrl.use(isModeValid, isUrlsValid)
-routerUrl.post('/', service.addRuleService);
-routerUrl.delete('/', service.deleteRuleService);
+routerUrl.post('/', service.addRules);
+routerUrl.delete('/', service.deleteRule);
 
 export default routerUrl;

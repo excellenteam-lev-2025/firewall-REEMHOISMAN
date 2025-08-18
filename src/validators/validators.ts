@@ -30,7 +30,7 @@ export const isModeValid = (req: Request, res: Response, next: NextFunction) => 
 
 export const isIpsValid = (req: Request, res: Response, next: NextFunction) => {
     const { values } = req.body;
-    if (!values.every((val:string)=>validator.isIP(val, 4))){
+    if (!Array.isArray(values) || values.length === 0 || !values.every((val:string)=>validator.isIP(val, 4))){
         return next(new HttpError(400, ERRORS.VALS_ERR + ' IP addresses'));
     }
     req.body.type = 'ip';
@@ -41,7 +41,7 @@ export const isIpsValid = (req: Request, res: Response, next: NextFunction) => {
 export const isUrlsValid = (req: Request, res: Response, next: NextFunction) => {
     const { values } = req.body;
 
-    if (!values.every((val:string)=> validator.isURL(val))){
+    if (!Array.isArray(values) ||values.length === 0 || !values.every((val:string)=> validator.isURL(val))){
         return next(new HttpError(400, ERRORS.VALS_ERR + ' URL addresses'));
     }
 
@@ -52,7 +52,8 @@ export const isUrlsValid = (req: Request, res: Response, next: NextFunction) => 
 export const isPortsValid = (req: Request, res: Response, next: NextFunction) => {
     const { values } = req.body;
 
-    if (!Array.isArray(values) || !values.every((val: number) => typeof val === 'number' && val >= 0 && val <= 65535)) {
+    if (!Array.isArray(values) || values.length === 0 ||
+        !values.every((val: number) => typeof val === 'number' && Number.isInteger(val) && val >= 1 && val <= 65535)) {
         return next(new HttpError(400, ERRORS.VALS_ERR + ' Ports'));
     }
 

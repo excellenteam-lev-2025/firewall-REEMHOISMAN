@@ -1,9 +1,7 @@
-import { mockSuccess, withData, mockDb } from './testSetup.js';
+import { mockSuccess, withData } from './testSetup.js';
 import request from 'supertest';
-import { rules } from '../types/models/rules.js';
 import app from '../app.js';
 
-// test suite for get endpoints
 describe('GET Endpoints', () => {
     
     test('Get all rules - empty database', async () => {

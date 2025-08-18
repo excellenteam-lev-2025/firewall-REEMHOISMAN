@@ -1,11 +1,9 @@
 import { mockSuccess, mockConflict } from './testSetup.js';
 import request from 'supertest';
-import { rules } from '../types/models/rules.js';
 import app from '../app.js';
 
-// test suite for post endpoints
 describe('POST Endpoints', () => {
-    
+
     beforeEach(() => {
         mockSuccess();
     });
@@ -102,14 +100,6 @@ describe('POST Endpoints', () => {
             .expect(400);
     });
 
-    test('Reject port out of range - zero', async () => {
-        // Port 0 might be accepted by validator, expecting 201
-        await request(app)
-            .post('/api/firewall/port')
-            .send({ values: [0], mode: 'blacklist', type: 'port' })
-            .expect(201);
-    });
-
     test('Reject port out of range - negative', async () => {
         await request(app)
             .post('/api/firewall/port')
@@ -126,18 +116,113 @@ describe('POST Endpoints', () => {
 
     test('Prevent duplicate rules', async () => {
         const ip = '1.1.1.1';
-        
-        // First call should succeed
+
         await request(app)
             .post('/api/firewall/ip')
             .send({ values: [ip], mode: 'blacklist', type: 'ip' })
             .expect(201);
-        
-        // Second call should fail with conflict error
+
         mockConflict();
         await request(app)
             .post('/api/firewall/ip')
             .send({ values: [ip], mode: 'blacklist', type: 'ip' })
+            .expect(409);
+    });
+
+    test('Reject port out of range - zero', async () => {
+        await request(app)
+            .post('/api/firewall/port')
+            .send({ values: [0], mode: 'blacklist', type: 'port' })
+            .expect(400);
+    });
+
+    test('Reject non-integer port', async () => {
+        await request(app)
+            .post('/api/firewall/port')
+            .send({ values: [8080.5], mode: 'blacklist', type: 'port' })
+            .expect(400);
+    });
+
+    test('Reject string port', async () => {
+        await request(app)
+            .post('/api/firewall/port')
+            .send({ values: ['8080'], mode: 'blacklist', type: 'port' })
+            .expect(400);
+    });
+
+    test('Reject empty URL', async () => {
+        await request(app)
+            .post('/api/firewall/url')
+            .send({ values: [''], mode: 'blacklist', type: 'url' })
+            .expect(400);
+    });
+
+    test('Reject whitespace URL', async () => {
+        await request(app)
+            .post('/api/firewall/url')
+            .send({ values: ['   '], mode: 'blacklist', type: 'url' })
+            .expect(400);
+    });
+
+    test('Reject mixed valid/invalid IPs', async () => {
+        await request(app)
+            .post('/api/firewall/ip')
+            .send({ values: ['10.0.0.1', '999.999.999.999'], mode: 'blacklist', type: 'ip' })
+            .expect(400);
+    });
+
+    test('Reject mixed valid/invalid ports', async () => {
+        await request(app)
+            .post('/api/firewall/port')
+            .send({ values: [80, -1], mode: 'blacklist', type: 'port' })
+            .expect(400);
+    });
+
+    test('Reject mixed valid/invalid URLs', async () => {
+        await request(app)
+            .post('/api/firewall/url')
+            .send({ values: ['https://ok.com', 'not-a-url'], mode: 'blacklist', type: 'url' })
+            .expect(400);
+    });
+
+    test('Reject empty values array', async () => {
+        await request(app)
+            .post('/api/firewall/ip')
+            .send({ values: [], mode: 'blacklist', type: 'ip' })
+            .expect(400);
+    });
+
+    test('Reject non-array values', async () => {
+        await request(app)
+            .post('/api/firewall/ip')
+            .send({ values: '1.1.1.1', mode: 'blacklist', type: 'ip' })
+            .expect(400);
+    });
+
+    test('Prevent duplicate port rule', async () => {
+        await request(app)
+            .post('/api/firewall/port')
+            .send({ values: [8081], mode: 'blacklist', type: 'port' })
+            .expect(201);
+
+        mockConflict();
+        await request(app)
+            .post('/api/firewall/port')
+            .send({ values: [8081], mode: 'blacklist', type: 'port' })
+            .expect(409);
+    });
+
+    test('Prevent duplicate URL rule', async () => {
+        const u = 'https://duplicate.example';
+        await request(app)
+            .post('/api/firewall/url')
+            .send({ values: [u], mode: 'blacklist', type: 'url' })
+            .expect(201);
+
+        mockConflict();
+        await request(app)
+            .post('/api/firewall/url')
+            .send({ values: [u], mode: 'blacklist', type: 'url' })
             .expect(409);
     });
 });

@@ -1,4 +1,3 @@
-// src/config/env.ts
 import 'dotenv/config';
 import { z } from 'zod';
 
@@ -22,7 +21,7 @@ const envSchema = z.object({
 
 const result = envSchema.safeParse(process.env);
 if (!result.success) {
-    console.error('❌ Invalid environment variables:');
+    console.error('Invalid environment variables:');
     result.error.issues.forEach(issue => {
         console.error(`- ${issue.path.join('.')}: ${issue.message}`);
     });

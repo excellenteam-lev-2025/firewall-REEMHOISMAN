@@ -22,7 +22,7 @@ export const addRules = async (trx:any, toAdd: Data) => {
 };
 
 export const deleteRule = async (trx:any, toDelete: Data) => {
-    return trx
+    return await trx
         .delete(rules)
         .where(
             and(
@@ -31,8 +31,7 @@ export const deleteRule = async (trx:any, toDelete: Data) => {
                 inArray(rules.value, toDelete.values)
             )
         )
-        .returning();
-
+        .returning({id: rules.id});
 };
 
 
@@ -53,5 +52,3 @@ export const toggleRules = async (trx:any, toUpdate:Data) => {
         )
         .returning({ id: rules.id, value:rules.value, active: rules.active });
 };
-
-

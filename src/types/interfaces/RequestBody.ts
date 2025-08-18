@@ -1,4 +1,3 @@
-
 import { Mode, RuleType } from '../common.js';
 
 export interface Data {
@@ -8,11 +7,3 @@ export interface Data {
     ids?: number[];
     active?: boolean;
 }
-
-export interface UpdateData {
-    ids: number[];
-    mode: Mode;
-    active: boolean;
-}
-
-export type UpdateReqBody = Record<string, UpdateData>;

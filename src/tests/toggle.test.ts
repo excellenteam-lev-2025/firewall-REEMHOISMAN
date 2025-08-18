@@ -1,7 +1,5 @@
 import { withData } from './testSetup.js';
 import request from 'supertest';
-import { rules } from '../types/models/rules.js';
-import { eq } from 'drizzle-orm';
 import app from '../app.js';
 
 // test suite for put toggle endpoint

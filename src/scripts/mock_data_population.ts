@@ -2,8 +2,7 @@ import { faker } from '@faker-js/faker';
 import { rules } from '../types/models/rules.js';
 import { Mode, RuleType } from '../types/common.js';
 import '../config/Logger.js';
-import db from '../db';
-import Database from '../config/Database.js';
+import Database from '../config/Database';
 
 const MODES: Mode[] = ['blacklist', 'whitelist'];
 
@@ -13,7 +12,9 @@ const genIps = (n: number) => {
     while (set.size < n) set.add(faker.internet.ipv4());
     return [...set].slice(0, n);
 };
+
 const genPorts = () => [1, 22, 80, 443, 1024, 3306, 5432, 6379, 8080, 65535];
+
 const genUrls = (n: number) => {
     const edges = [
         'http://localhost/',
@@ -38,6 +39,7 @@ const buildRowsForType = (type: RuleType, values: Array<string | number>) =>
     );
 
 const seedDbMockData = async () => {
+    const db = Database.getInstance().getDb()
     const ips = genIps(10);
     const ports = genPorts();
     const urls = genUrls(10);

@@ -1,5 +1,3 @@
-import Database from "../config/Database";
-
 // mocked database instance for testing
 const mockDb = {
     select: jest.fn(),

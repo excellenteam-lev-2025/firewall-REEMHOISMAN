@@ -1,26 +1,28 @@
-// src/config/Logger.ts
 import fs from "fs";
 import path from "path";
 import winston from "winston";
+import util from "util";
 import { ENV } from "./env.js";
 
-/**
- * Logger Singleton class
- * only one instance of the logger exists
- */
 class Logger {
     private static instance: Logger;
     private readonly logger: winston.Logger;
+
+    private readonly originalConsole: Pick<typeof console, "log" | "info" | "warn" | "error" | "debug"> = {
+        log: console.log,
+        info: console.info,
+        warn: console.warn,
+        error: console.error,
+        debug: console.debug
+    };
+
+    private patched = false;
 
     private constructor() {
         this.logger = this.initLogger();
         this.patchConsole();
     }
 
-    /**
-     * Gets the singleton instance of Logger
-     * @returns Logger instance
-     */
     public static getInstance(): Logger {
         if (!Logger.instance) {
             Logger.instance = new Logger();
@@ -28,10 +30,6 @@ class Logger {
         return Logger.instance;
     }
 
-    /**
-     * Gets the winston logger instance
-     * @returns winston.Logger
-     */
     public getLogger(): winston.Logger {
         return this.logger;
     }
@@ -43,8 +41,9 @@ class Logger {
         const devFormat = winston.format.combine(
             winston.format.colorize(),
             winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss.SSS" }),
-            winston.format.printf(({ timestamp, level, message }) => {
-                return `[${timestamp}] ${level}: ${message}`;
+            winston.format.printf(({ timestamp, level, message, ...meta }) => {
+                const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : "";
+                return `[${timestamp}] ${level}: ${message}${metaStr}`;
             })
         );
 
@@ -77,30 +76,64 @@ class Logger {
     }
 
     private patchConsole(): void {
+        if (this.patched) return;
+
         const lg = this.logger;
-        console.log = (...args: any[]) => lg.info(args.join(" "));
-        console.info = (...args: any[]) => lg.info(args.join(" "));
-        console.warn = (...args: any[]) => lg.warn(args.join(" "));
-        console.error = (...args: any[]) => lg.error(args.join(" "));
-        console.debug = (...args: any[]) => lg.debug(args.join(" "));
+        const fmt = (args: any[]) => {
+            // util.format keeps Node’s console formatting behavior (%s, %d, objects, etc.)
+            try {
+                return args.length === 1 ? this.normalizeArg(args[0]) : util.format(...args);
+            } catch {
+                return args.map(this.normalizeArg).join(" ");
+            }
+        };
+
+        console.log = (...args: any[]) => lg.info(fmt(args));
+        console.info = (...args: any[]) => lg.info(fmt(args));
+        console.warn = (...args: any[]) => lg.warn(fmt(args));
+        console.error = (...args: any[]) => lg.error(fmt(args));
+        console.debug = (...args: any[]) => lg.debug(fmt(args));
+
+        this.patched = true;
     }
+
+
+    public restoreOriginalConsole(): void {
+        if (!this.patched) return;
+        console.log = this.originalConsole.log;
+        console.info = this.originalConsole.info;
+        console.warn = this.originalConsole.warn;
+        console.error = this.originalConsole.error;
+        console.debug = this.originalConsole.debug;
+        this.patched = false;
+    }
+
+    private normalizeArg = (arg: any): string => {
+        if (arg instanceof Error) {
+            return arg.stack || `${arg.name}: ${arg.message}`;
+        }
+        if (typeof arg === "object") {
+            try {
+                return JSON.stringify(arg);
+            } catch {
+                return String(arg);
+            }
+        }
+        return String(arg);
+    };
 
     public info(message: string, ...meta: any[]): void {
         this.logger.info(message, ...meta);
     }
-
     public error(message: string, ...meta: any[]): void {
         this.logger.error(message, ...meta);
     }
-
     public warn(message: string, ...meta: any[]): void {
         this.logger.warn(message, ...meta);
     }
-
     public debug(message: string, ...meta: any[]): void {
         this.logger.debug(message, ...meta);
     }
 }
 
-// Export the singleton instance
 export const logger = Logger.getInstance().getLogger();
