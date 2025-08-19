@@ -1,5 +1,5 @@
 import {rules} from "../types/models/rules.js";
-import {db} from "../db.js";
+import Database from "../config/Database.js";
 import {Data} from "../types/interfaces/RequestBody.js";
 import {and, eq, inArray} from "drizzle-orm";
 import {HttpError} from "../utils/errors.js";
@@ -22,7 +22,7 @@ export const addRules = async (trx:any, toAdd: Data) => {
 };
 
 export const deleteRule = async (trx:any, toDelete: Data) => {
-    return trx
+    return await trx
         .delete(rules)
         .where(
             and(
@@ -31,12 +31,12 @@ export const deleteRule = async (trx:any, toDelete: Data) => {
                 inArray(rules.value, toDelete.values)
             )
         )
-        .returning();
-
+        .returning({id: rules.id});
 };
 
 
 export const getAllRules = async () => {
+    const db = Database.getInstance().getDb();
     return db.select().from(rules);
 };
 
@@ -50,7 +50,5 @@ export const toggleRules = async (trx:any, toUpdate:Data) => {
                 inArray(rules.id, toUpdate.ids)
             )
         )
-        .returning({ id: rules.id, active: rules.active, type: rules.type, mode: rules.mode });
+        .returning({ id: rules.id, value:rules.value, active: rules.active });
 };
-
-

@@ -1,5 +1,7 @@
 import express from 'express';
-import { initDb } from './db.js';
+import Database from './config/Database.js';
+
+const connectToDb = () => Database.getInstance().connect();
 import routerIP from "./routes/routerIP.js";
 import routerUrl from "./routes/routerUrl.js";
 import routerPort from "./routes/routerPort.js";
@@ -21,13 +23,13 @@ app.use('/api/firewall/url', routerUrl);
 app.use('/api/firewall/port', routerPort);
 app.use('/api/firewall/rules', routerRules);
 
-// error handler
 app.use((err: any, req: any, res: any, next: any) => {
     console.error(err);
     res.status(err.statusCode || 500).json({ error: err.message || 'Internal Server Error' });
 });
 
-// init DB and start server
-initDb().then(() => {
+export default app;
+
+connectToDb().then(() => {
     app.listen(ENV.PORT, () => console.info(`Server is running on port ${ENV.PORT}`));
 });

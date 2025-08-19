@@ -4,7 +4,7 @@ import {isToggleValid} from '../validators/validators.js'
 
 const routerRules = Router();
 
-routerRules.get('/', service.getAllRulesService);
-routerRules.put('/', isToggleValid, service.toggleRuleStatusService);
+routerRules.get('/', service.getAllRules);
+routerRules.put('/', isToggleValid, service.toggleRuleStatus);
 
 export default routerRules;

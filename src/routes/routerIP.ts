@@ -5,7 +5,7 @@ import {isIpsValid, isModeValid} from '../validators/validators.js'
 const routerIp = Router();
 
 routerIp.use(isModeValid, isIpsValid)
-routerIp.post('/', service.addRuleService);
-routerIp.delete('/', service.deleteRuleService);
+routerIp.post('/', service.addRules);
+routerIp.delete('/', service.deleteRule);
 
 export default routerIp;
