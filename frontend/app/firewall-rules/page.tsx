@@ -1,6 +1,6 @@
 import RulesAddition from "./RulesAddition";
 import RulesList from "./RulesList";
-import { fetchFirewallRules } from "@/lib/server-api";
+import { fetchFirewallRules } from "@/server-api";
 
 export default async function FirewallRules() {
     const rules = await fetchFirewallRules();
