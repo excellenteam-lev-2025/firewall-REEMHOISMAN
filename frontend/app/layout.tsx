@@ -9,7 +9,7 @@ const RootLayout = ({ children }: { children: React.ReactNode }) =>(
         <body>
             <Header />
             <Navbar />
-            <main className="mx-auto mt-6 w-full max-w-4xl p-4">{children}</main>
+            <main className="mx-auto mt-6 w-full p-4">{children}</main>
             <Footer />
         </body>
     </html>
