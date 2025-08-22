@@ -1,12 +1,5 @@
-// components/RuleItem.tsx
 "use client";
-import { Rule } from "@/api/types";
-
-interface RuleItemProps {
-    rule: Rule;
-    onToggle: (rule: Rule) => void;
-    onDelete: (rule: Rule) => void;
-}
+import { Rule, RuleItemProps } from "@/api/types";
 
 const RuleItem = ({ rule, onToggle, onDelete }: RuleItemProps) => {
     const statusColor = rule.active ? 'bg-green-500' : 'bg-gray-400';

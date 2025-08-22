@@ -2,25 +2,41 @@
 import React, { useState } from "react";
 import { addRule } from "@/api/rules";
 import { useRouter } from "next/navigation";
+import { useToast, Toast } from "@/app/components/Toast";
+import { RuleMode, RuleType } from "@/api/types";
 
 const examples = { ip: "192.168.1.1", url: "example.com", port: "8080" };
 
 const RulesAddition: React.FC = () => {
     const [value, setValue] = useState("");
-    const [type, setType] = useState<"ip" | "url" | "port">("ip");
-    const [mode, setMode] = useState<"blacklist" | "whitelist">("blacklist");
+    const [type, setType] = useState<RuleType>("ip");
+    const [mode, setMode] = useState<RuleMode>("blacklist");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const router = useRouter();
-
+    const { showToast, toast, hideToast } = useToast();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!value || isSubmitting) return;
+        
+        console.log('=== FORM SUBMIT STARTED ===');
         setIsSubmitting(true);
-        const success = await addRule(type, value, mode);
-        if (success) router.refresh();
-        setValue("");
+        
+        console.log('Calling addRule with:', { type, value, mode });
+        const result = await addRule(type, value, mode);
+        console.log('addRule result:', result);
+        
+        if (result.success) {
+            console.log('SUCCESS: Rule added');
+            setValue("");
+            showToast('Rule added successfully', 'success');
+            router.refresh();
+        } else {
+            console.log('ERROR: Rule add failed:', result.error);
+            showToast(result.error || 'Failed to add rule', 'error');
+        }
         setIsSubmitting(false);
+        console.log('=== FORM SUBMIT ENDED ===');
     };
 
     return (
@@ -75,8 +91,15 @@ const RulesAddition: React.FC = () => {
             >
                 {isSubmitting ? "Adding..." : "Add Rule"}
             </button>
+            {toast && (
+                <Toast 
+                    message={toast.message} 
+                    type={toast.type} 
+                    onClose={hideToast} 
+                />
+            )}
         </form>
     );
 };
 
-export default RulesAddition
+export default RulesAddition;

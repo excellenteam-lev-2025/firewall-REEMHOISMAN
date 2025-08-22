@@ -4,7 +4,9 @@ import Footer from "@/app/Footer";
 import Navbar from "@/app/Navbar";
 import React from "react";
 
-const RootLayout = ({ children }: { children: React.ReactNode }) =>(
+import "../config/Logger";
+
+const RootLayout = ({ children }: { children: React.ReactNode }) => (
     <html lang="en">
         <body>
             <Header />

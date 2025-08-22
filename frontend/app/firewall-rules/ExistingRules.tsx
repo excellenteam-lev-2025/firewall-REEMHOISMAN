@@ -1,9 +1,8 @@
-// components/ExistingRules.tsx
 import RulesList from './RulesList';
 import { fetchRules } from '@/api/rules';
 
 const ExistingRules = async () => {
-    const data = await fetchRules();
+    const { data, error } = await fetchRules();
 
     if (!data) {
         return (
@@ -11,6 +10,9 @@ const ExistingRules = async () => {
                 <div className="text-center py-8">
                     <div className="text-red-500 text-4xl mb-2">⚠️</div>
                     <p className="text-gray-600">Failed to load rules</p>
+                    {error && (
+                        <p className="text-red-500 text-sm mt-2">{error}</p>
+                    )}
                 </div>
             </div>
         );

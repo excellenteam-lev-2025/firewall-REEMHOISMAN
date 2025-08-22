@@ -1,25 +1,15 @@
 "use client";
 import RuleItem from "./RuleItem";
-import React, { useState } from "react";
+import React from "react";
 import { toggleRule, deleteRule } from "@/api/rules";
-
-interface Rule {
-    id: number;
-    value: any;
-    active: boolean;
-    mode: 'blacklist' | 'whitelist';
-    type: 'ip' | 'url' | 'port';
-}
-
-interface RulesListProps {
-    typeRules: {
-        blacklist: Array<{ id: number; value: any; active: boolean }>;
-        whitelist: Array<{ id: number; value: any; active: boolean }>;
-    };
-    type: 'ip' | 'url' | 'port';
-}
+import { useRouter } from "next/navigation";
+import { useToast, Toast } from "@/app/components/Toast";
+import { Rule, RulesListProps } from "@/api/types";
 
 const RulesList: React.FC<RulesListProps> = ({ typeRules, type }) => {
+    const router = useRouter();
+    const { showToast, toast, hideToast } = useToast();
+
     if (!typeRules) {
         return (
             <div className="h-64 border rounded-lg bg-gray-50 flex items-center justify-center">
@@ -28,38 +18,30 @@ const RulesList: React.FC<RulesListProps> = ({ typeRules, type }) => {
         );
     }
 
-    const initialRules: Rule[] = [
-    ...typeRules.blacklist.map(rule => ({
-        ...rule,
-        mode: "blacklist" as "blacklist",
-        type,
-        active: rule.active
-    })),
-    ...typeRules.whitelist.map(rule => ({
-        ...rule,
-        mode: "whitelist" as "whitelist",
-        type,
-        active: rule.active
-    }))
-];
-
-    const [rules, setRules] = useState<Rule[]>(initialRules);
+    const rules: Rule[] = [
+        ...typeRules.blacklist.map(rule => ({...rule, value: String(rule.value),mode: "blacklist" as const, type})),
+        ...typeRules.whitelist.map(rule => ({...rule, value: String(rule.value), mode: "whitelist" as const, type}))
+    ];
 
     const handleToggle = async (rule: Rule) => {
-        const success = await toggleRule(rule);
+        const { success, error } = await toggleRule(rule);
         if (success) {
-            setRules(rules =>
-                rules.map(r =>
-                    r.id === rule.id ? { ...r, active: !r.active } : r
-                )
-            );
+            showToast(`Rule ${rule.active ? 'disabled' : 'enabled'} successfully`, 'success');
+            router.refresh();
+        } else {
+            console.error('Toggle rule failed:', error);
+            showToast(error || 'Failed to toggle rule', 'error');
         }
     };
 
     const handleDelete = async (rule: Rule) => {
-        const success = await deleteRule(rule);
+        const { success, error } = await deleteRule(rule);
         if (success) {
-            setRules(rules => rules.filter(r => r.id !== rule.id));
+            showToast('Rule deleted successfully', 'success');
+            router.refresh();
+        } else {
+            console.error('Delete rule failed:', error);
+            showToast(error || 'Failed to delete rule', 'error');
         }
     };
 
@@ -75,16 +57,25 @@ const RulesList: React.FC<RulesListProps> = ({ typeRules, type }) => {
     }
 
     return (
-        <div className="h-64 border rounded-lg bg-gray-50 overflow-y-auto p-2 space-y-2">
-            {rules.map((rule) => (
-                <RuleItem
-                    key={rule.id}
-                    rule={rule}
-                    onToggle={handleToggle}
-                    onDelete={handleDelete}
+        <>
+            <div className="h-64 border rounded-lg bg-gray-50 overflow-y-auto p-2 space-y-2">
+                {rules.map((rule) => (
+                    <RuleItem
+                        key={rule.id}
+                        rule={rule}
+                        onToggle={handleToggle}
+                        onDelete={handleDelete}
+                    />
+                ))}
+            </div>
+            {toast && (
+                <Toast 
+                    message={toast.message} 
+                    type={toast.type} 
+                    onClose={hideToast} 
                 />
-            ))}
-        </div>
+            )}
+        </>
     );
 };
 

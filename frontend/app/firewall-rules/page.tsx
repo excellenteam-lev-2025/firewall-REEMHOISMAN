@@ -1,4 +1,3 @@
-// components/FirewallRules.tsx
 import RulesAddition from "./RulesAddition";
 import ExistingRules from "./ExistingRules";
 
