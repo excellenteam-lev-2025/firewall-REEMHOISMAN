@@ -80,7 +80,7 @@ class Logger {
 
         const lg = this.logger;
         const fmt = (args: any[]) => {
-            // util.format keeps Node’s console formatting behavior (%s, %d, objects, etc.)
+
             try {
                 return args.length === 1 ? this.normalizeArg(args[0]) : util.format(...args);
             } catch {

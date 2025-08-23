@@ -21,7 +21,7 @@ class LoggerService {
             this.overrideConsole();
         } catch (error) {
             this.initializationError = error as Error;
-            // Fallback to basic console logging if winston fails
+
             this.logger = this.createFallbackLogger();
             console.error('Logger initialization failed, using fallback:', error);
         }

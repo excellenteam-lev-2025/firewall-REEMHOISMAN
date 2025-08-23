@@ -1,13 +1,12 @@
 import { z } from "zod";
 
-// Validate and coerce environment variables
 const envSchema = z.object({
     ENV_MODE: z.enum(["dev", "prod", "test"]).default("dev"),
-    SERVER_PORT: z.coerce.number().min(1).max(65535).default(3001),
+    SERVER_PORT: z.coerce.number().min(1).max(65535).default(4000),
     CLIENT_PORT: z.coerce.number().min(1).max(65535).default(3000),
 }).transform(env => ({
     ...env,
-    SERVER_BASE_URL: `http://localhost:${env.SERVER_PORT}`,
+    SERVER_BASE_URL: `http://backend:${env.SERVER_PORT}`,
     CLIENT_BASE_URL: `http://localhost:${env.CLIENT_PORT}`,
 }));
 

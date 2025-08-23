@@ -1,4 +1,3 @@
-// mocked database instance for testing
 const mockDb = {
     select: jest.fn(),
     insert: jest.fn(),
@@ -7,8 +6,6 @@ const mockDb = {
     transaction: jest.fn()
 };
 
-
-// Mock the Database singleton
 jest.mock('../config/Database.js', () => {
     return {
         getInstance: jest.fn(() => ({
@@ -17,7 +14,6 @@ jest.mock('../config/Database.js', () => {
         }))
     };
 });
-
 
 export { mockDb };
 
@@ -56,7 +52,7 @@ export const mockSuccess = () => {
 };
 
 export const withData = (data: any[] = []) => {
-        jest.clearAllMocks();
+    jest.clearAllMocks();
     
     mockDb.transaction.mockImplementation(async (callback) => {
         const mockTrx = {
@@ -90,7 +86,7 @@ export const withData = (data: any[] = []) => {
 };
 
 export const mockConflict = () => {
-        jest.clearAllMocks();
+    jest.clearAllMocks();
     
     mockDb.transaction.mockImplementation(async (callback) => {
         const mockTrx = {
