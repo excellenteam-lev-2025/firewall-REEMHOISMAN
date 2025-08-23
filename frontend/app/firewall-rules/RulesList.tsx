@@ -3,7 +3,7 @@ import RuleItem from "./RuleItem";
 import React from "react";
 import { toggleRule, deleteRule } from "@/api/rules";
 import { useRouter } from "next/navigation";
-import { useToast, Toast } from "@/app/components/Toast";
+import { useToast, Toast } from "@/app/Toast";
 import { Rule, RulesListProps } from "@/api/types";
 
 const RulesList: React.FC<RulesListProps> = ({ typeRules, type }) => {

@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { addRule } from "@/api/rules";
 import { useRouter } from "next/navigation";
-import { useToast, Toast } from "@/app/components/Toast";
+import { useToast, Toast } from "@/app/Toast";
 import { RuleMode, RuleType } from "@/api/types";
 
 const examples = { ip: "192.168.1.1", url: "example.com", port: "8080" };
