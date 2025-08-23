@@ -6,7 +6,7 @@ const envSchema = z.object({
     CLIENT_PORT: z.coerce.number().min(1).max(65535).default(3000),
 }).transform(env => ({
     ...env,
-    SERVER_BASE_URL: `http://backend:${env.SERVER_PORT}`,
+    SERVER_BASE_URL: env.ENV_MODE === "prod" ? `http://backend:${env.SERVER_PORT}` : `http://backend:${env.SERVER_PORT}`,
     CLIENT_BASE_URL: `http://localhost:${env.CLIENT_PORT}`,
 }));
 

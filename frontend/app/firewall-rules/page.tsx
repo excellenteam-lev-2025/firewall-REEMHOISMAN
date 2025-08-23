@@ -1,5 +1,5 @@
 import RulesAddition from "./RulesAddition";
-import ExistingRules from "./ExistingRules";
+import RuleTypeFilter from "./RuleTypeFilter";
 
 const FirewallRules = () => {
     return (
@@ -19,7 +19,7 @@ const FirewallRules = () => {
 
                 <div className="space-y-8">
                     <RulesAddition/>
-                    <ExistingRules />
+                    <RuleTypeFilter />
                 </div>
             </div>
         </div>

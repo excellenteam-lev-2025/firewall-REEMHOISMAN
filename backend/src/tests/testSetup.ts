@@ -47,8 +47,10 @@ export const mockSuccess = () => {
     });
     
     mockDb.select.mockReturnValue({
-        from: jest.fn().mockResolvedValue([])
-    });
+        from: jest.fn().mockReturnValue({
+            where: jest.fn().mockResolvedValue([])
+        })
+    }).mockResolvedValue([]);
 };
 
 export const withData = (data: any[] = []) => {
@@ -81,8 +83,10 @@ export const withData = (data: any[] = []) => {
     });
     
     mockDb.select.mockReturnValue({
-        from: jest.fn().mockResolvedValue(data)
-    });
+        from: jest.fn().mockReturnValue({
+            where: jest.fn().mockResolvedValue(data)
+        })
+    }).mockResolvedValue(data);
 };
 
 export const mockConflict = () => {

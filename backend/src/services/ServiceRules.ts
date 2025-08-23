@@ -7,6 +7,7 @@ import { RuleType } from "../types/common.js";
 
 export const addRules = async (req:Request, res:Response, next:NextFunction) => {
     try {
+        console.log("hiii")
         const db = Database.getInstance().getDb();
         await db.transaction(async (trx) => {
             await repo.addRules(trx, req.body);
@@ -36,7 +37,8 @@ export const deleteRule = async (req: Request, res: Response, next: NextFunction
 
 export const getAllRules = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const rows = await repo.getAllRules();
+        const typeParam = req.query.type as string;
+        const rows = await repo.getAllRules(typeParam);
 
         const data = {
             ips: { blacklist: [], whitelist: [] },
@@ -55,8 +57,17 @@ export const getAllRules = async (req: Request, res: Response, next: NextFunctio
             }
         }
 
-
-        res.status(200).json(data);
+        // If type parameter is specified, return only that type
+        if (typeParam === 'ips') {
+            res.status(200).json({ ips: data.ips });
+        } else if (typeParam === 'urls') {
+            res.status(200).json({ urls: data.urls });
+        } else if (typeParam === 'ports') {
+            res.status(200).json({ ports: data.ports });
+        } else {
+            // Default behavior: return all rules
+            res.status(200).json(data);
+        }
     } catch (err) {
         next(err);
     }

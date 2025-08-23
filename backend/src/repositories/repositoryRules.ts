@@ -35,9 +35,24 @@ export const deleteRule = async (trx:any, toDelete: Data) => {
 };
 
 
-export const getAllRules = async () => {
+export const getAllRules = async (typeFilter?: string) => {
     const db = Database.getInstance().getDb();
-    return db.select().from(rules);
+    console.log("hiii")
+    
+    let dbType: string | undefined;
+    if (typeFilter === 'ips') {
+        dbType = 'ip';
+    } else if (typeFilter === 'urls') {
+        dbType = 'url';
+    } else if (typeFilter === 'ports') {
+        dbType = 'port';
+    }
+    
+    if (dbType) {
+        return db.select().from(rules).where(eq(rules.type, dbType));
+    } else {
+        return db.select().from(rules);
+    }
 };
 
 export const toggleRules = async (trx:any, toUpdate:Data) => {
