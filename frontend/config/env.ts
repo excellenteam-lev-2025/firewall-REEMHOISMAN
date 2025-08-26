@@ -1,17 +1,19 @@
 import { z } from "zod";
+import 'dotenv/config';
 
 const envSchema = z.object({
-    ENV_MODE: z.enum(["dev", "prod", "test"]).default("dev"),
-    SERVER_PORT: z.coerce.number().min(1).max(65535).default(4000),
-    CLIENT_PORT: z.coerce.number().min(1).max(65535).default(3000),
-}).transform(env => ({
-    ...env,
-    SERVER_BASE_URL: env.ENV_MODE === "prod" ? `http://backend:${env.SERVER_PORT}` : `http://backend:${env.SERVER_PORT}`,
-    CLIENT_BASE_URL: `http://localhost:${env.CLIENT_PORT}`,
-}));
+    NEXT_PUBLIC_ENV_MODE: z.enum(["dev", "prod", "test"]).default("dev"),
+
+    // מה שהדפדפן משתמש בו (תמיד localhost עם פורט ממופה מה-compose)
+    NEXT_PUBLIC_API_URL: z.url().default("http://localhost:4000"),
+
+    // מה שה-SSR (server side) משתמש בו, בתוך Docker network
+    INTERNAL_API_URL: z.url().default("http://backend:4000"),
+
+    NEXT_PUBLIC_CLIENT_PORT: z.coerce.number().min(1).max(65535).default(3000),
+});
 
 const result = envSchema.safeParse(process.env);
-
 if (!result.success) {
     if (typeof window === "undefined") {
         console.error("Invalid environment variables:");
@@ -24,4 +26,10 @@ if (!result.success) {
     }
 }
 
-export const ENV = result.data;
+const env = result.data!;
+
+// שני בסיסי API
+export const API_URL =
+    typeof window === "undefined" ? env.INTERNAL_API_URL : env.NEXT_PUBLIC_API_URL;
+
+export const ENV = env;
