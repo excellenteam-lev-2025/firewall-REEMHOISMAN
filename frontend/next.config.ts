@@ -1,12 +1,12 @@
+// next.config.ts
 import type { NextConfig } from "next";
-import { ENV } from "./config/env";
 
 const nextConfig: NextConfig = {
     async rewrites() {
         return [
             {
                 source: "/api/firewall/:path*",
-                destination: `${ENV!.SERVER_BASE_URL}/api/firewall/:path*`
+                destination: `http://backend:4000/api/firewall/:path*`
             },
         ];
     },

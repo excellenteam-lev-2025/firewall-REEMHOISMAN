@@ -11,22 +11,7 @@ import './config/Logger.js';
 
 const app = express();
 
-app.use(express.json({ 
-    verify: (req, res, buf) => {
-        console.log('Raw body:', buf.toString());
-    }
-}));
-
-// Debug middleware to log raw requests
-app.use((req, res, next) => {
-    console.log('=== RAW REQUEST DEBUG ===');
-    console.log('Method:', req.method);
-    console.log('URL:', req.url);
-    console.log('Headers:', JSON.stringify(req.headers, null, 2));
-    console.log('Body:', JSON.stringify(req.body));
-    console.log('========================');
-    next();
-});
+app.use(express.json());
 
 app.get('/', (req, res) => {
     console.info('Hello from Express!');

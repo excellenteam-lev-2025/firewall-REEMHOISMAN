@@ -30,7 +30,7 @@ const api = async (url: string, options: RequestInit = {}) => {
 export const fetchRules = async (type?: 'ips' | 'urls' | 'ports'): Promise<{ data: ApiRulesResponse | null; error: string | null }> => {
     const url = type 
         ? `/api/firewall/rules?type=${type}`
-        : `/api/firewall/rules`;
+        : `${ENV.NEXT_PUBLIC_API_URL}/api/firewall/rules`;
     const result = await api(url, { cache: 'no-store' });
     return { data: result.ok ? result.data : null, error: result.error };
 };
