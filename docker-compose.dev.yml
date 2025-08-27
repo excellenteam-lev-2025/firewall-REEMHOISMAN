@@ -38,7 +38,6 @@ services:
       - backend
     ports:
       - "3000:3000"
-    # מריץ רק סטארט – לא מיגרציות
     command: sh -c "npm run start"
     restart: unless-stopped
 
