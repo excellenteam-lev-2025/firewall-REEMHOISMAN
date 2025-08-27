@@ -6,7 +6,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_ENV_MODE: z.enum(["dev", "prod", "test"]).default("dev"),
 
   // מה שהדפדפן רואה (דרך פרוקסי/rewrites)
-  NEXT_PUBLIC_API_URL: z.string().url().default("http://localhost:4000"),
+  NEXT_PUBLIC_API_URL: z.string().url().default("http://backend:4000"),
 
   // מה שהשרת (SSR) רואה בתוך רשת הדוקר
   INTERNAL_API_URL: z.string().url().default("http://backend:4000"),

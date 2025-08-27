@@ -21,17 +21,10 @@ services:
       context: ./backend
     env_file:
       - ./backend/.env.dev
-    environment:
-      DB_HOST: db
-      DB_PORT: "5432"
-      DB_USER: postgres
-      DB_PASSWORD: "12345"
-      DB_NAME: firewall_dev
-      PORT: "4000"
-      HOST: "0.0.0.0"
     depends_on:
-      - db
-    command: sh -c "npx drizzle-kit migrate && (npm run start:prod || npm run start || node dist/main.js || node dist/index.js)"
+      db:
+        condition: service_healthy
+    command: sh -c "npx drizzle-kit migrate || true && (npm run start:prod || npm run start || node dist/main.js || node dist/index.js)"
     ports:
       - "4000:4000"
     restart: unless-stopped
