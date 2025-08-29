@@ -47,11 +47,11 @@ export const getAllRules = async (req: Request, res: Response, next: NextFunctio
         for (const row of rows) {
             const ruleType: RuleType = row.type as RuleType;
             if (ruleType === 'ip') {
-                data.ips[row.mode].push({ id: row.id, value: row.value });
+                data.ips[row.mode].push({ id: row.id, value: row.value, active: row.active});
             } else if (ruleType === 'url') {
-                data.urls[row.mode].push({ id: row.id, value: row.value });
+                data.urls[row.mode].push({ id: row.id, value: row.value, active: row.active});
             } else if (ruleType === 'port') {
-                data.ports[row.mode].push({ id: row.id, value: Number(row.value) });
+                data.ports[row.mode].push({ id: row.id, value: row.value, active: row.active});
             }
         }
 
