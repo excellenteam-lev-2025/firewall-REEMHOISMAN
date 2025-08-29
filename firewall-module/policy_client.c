@@ -1,4 +1,3 @@
-/* firewall_client.c - Simplified Client Application */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,24 +12,21 @@
 #define SERVER_PORT 9999
 #define BUFFER_SIZE 8192
 
-/* Rule structure matching kernel */
 typedef struct {
-    char cmd;           /* A=Add, D=Delete, C=Clear */
-    char rule_type;     /* S=Source IP, D=Dest IP, P=Port */
+    char cmd;           // A=Add, D=Delete, C=Clear 
+    char rule_type;     // S=Source IP, D=Dest IP, P=Port 
     uint32_t ip_addr;   
     uint16_t port;      
 } KernelRule;
 
-/* Parsed JSON rule */
 typedef struct {
-    char *type;         /* "ip" or "port" */
-    char *mode;         /* "blacklist" or "whitelist" */
-    char **values;      /* Array of IPs/ports */
-    int count;          /* Number of values */
+    char *type;        
+    char *mode;         // "blacklist" or "whitelist" 
+    char **values;      // Array of IPs/ports
+    int count;          // Number of values
 } IPRule;
 
 /* ============= Netlink Communication ============= */
-
 static int netlink_socket = -1;
 
 /* Initialize netlink socket once */
@@ -71,12 +67,12 @@ static int send_rule(KernelRule *rule) {
     if (init_netlink() < 0)
         return -1;
     
-    /* Prepare destination */
+    // Prepare destination
     memset(&dest_addr, 0, sizeof(dest_addr));
     dest_addr.nl_family = AF_NETLINK;
-    dest_addr.nl_pid = 0;  /* Kernel */
+    dest_addr.nl_pid = 0;  // Kernel
     
-    /* Allocate message */
+    // Allocate message
     nlh = (struct nlmsghdr *)calloc(1, NLMSG_SPACE(sizeof(KernelRule)));
     nlh->nlmsg_len = NLMSG_LENGTH(sizeof(KernelRule));
     nlh->nlmsg_pid = getpid();
@@ -84,7 +80,7 @@ static int send_rule(KernelRule *rule) {
     
     memcpy(NLMSG_DATA(nlh), rule, sizeof(KernelRule));
     
-    /* Send message */
+    // Send message
     iov.iov_base = (void *)nlh;
     iov.iov_len = nlh->nlmsg_len;
     
@@ -114,7 +110,6 @@ static int send_rule(KernelRule *rule) {
 }
 
 /* ============= JSON Parsing ============= */
-
 static IPRule* parse_json(const char *json_str) {
     IPRule *rule = calloc(1, sizeof(IPRule));
     cJSON *json = cJSON_Parse(json_str);
@@ -125,7 +120,6 @@ static IPRule* parse_json(const char *json_str) {
         return NULL;
     }
     
-    /* Get type and mode */
     cJSON *type = cJSON_GetObjectItem(json, "type");
     if (type && cJSON_IsString(type))
         rule->type = strdup(type->valuestring);
@@ -134,7 +128,6 @@ static IPRule* parse_json(const char *json_str) {
     if (mode && cJSON_IsString(mode))
         rule->mode = strdup(mode->valuestring);
     
-    /* Get values array */
     cJSON *values = cJSON_GetObjectItem(json, "values");
     if (values && cJSON_IsArray(values)) {
         rule->count = cJSON_GetArraySize(values);
@@ -176,21 +169,20 @@ static void process_rule(const char *json_data) {
         return;
     }
     
-    /* Display rule info */
     printf("Type: %s\n", rule->type);
     printf("Mode: %s\n", rule->mode); 
     printf("Values: %d entries\n", rule->count);
     
-    /* Only process blacklist rules */
+    // Only process blacklist rules
     if (strcmp(rule->mode, "blacklist") != 0) {
         printf("[INFO] Only blacklist mode supported\n");
         free_rule(rule);
         return;
     }
     
-    /* Send each value to kernel */
-    krule.cmd = 'A';  /* Add */
-    krule.rule_type = 'S';  /* Source IP by default */
+    // Send each value to kernel
+    krule.cmd = 'A';  
+    krule.rule_type = 'S';  // Source IP by default
     
     for (int i = 0; i < rule->count; i++) {
         printf("  [%d] %s\n", i+1, rule->values[i]);
@@ -240,7 +232,6 @@ static void run_server(void) {
         exit(1);
     }
     
-    /* Listen */
     if (listen(server_fd, 5) < 0) {
         perror("listen");
         exit(1);
@@ -248,7 +239,6 @@ static void run_server(void) {
     
     printf("[SERVER] Listening for connections from node server...\n");
     
-    /* Accept loop */
     while (1) {
         socklen_t addrlen = sizeof(addr);
         client_fd = accept(server_fd, (struct sockaddr *)&addr, &addrlen);
@@ -260,19 +250,16 @@ static void run_server(void) {
         
         printf("[SERVER] Client connected\n");
         
-        /* Read data */
         memset(buffer, 0, sizeof(buffer));
         int bytes = read(client_fd, buffer, sizeof(buffer) - 1);
         
         if (bytes > 0) {
-            /* Find JSON start */
             char *json = strstr(buffer, "{");
             if (json) {
                 process_rule(json);
             }
         }
         
-        /* Send response */
         if (write(client_fd, "OK\n", 3) < 0) {
             perror("write");
         }

@@ -31,5 +31,5 @@ app.use((err: any, req: any, res: any, next: any) => {
 export default app;
 
 connectToDb().then(() => {
-    app.listen(ENV.PORT, () => console.info(`Server is running on port ${ENV.PORT}`));
+    app.listen(ENV.PORT, '0.0.0.0', () => console.info(`Server is running on port ${ENV.PORT}`));
 });

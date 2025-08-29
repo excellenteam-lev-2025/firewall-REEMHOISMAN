@@ -1,38 +1,27 @@
 "use client";
-import { useState } from 'react';
-import { fetchRules, fetchIpRules, fetchUrlRules, fetchPortRules } from '@/api/rules';
+import { useEffect, useState, useCallback } from 'react';
+import { fetchRules } from '@/api/rules';
 import { ApiRulesResponse } from '@/api/types';
 import RulesList from './RulesList';
 
 type FilterType = 'all' | 'ips' | 'urls' | 'ports';
 
-const RuleTypeFilter = () => {
+interface RuleTypeFilterProps {
+    refreshTrigger?: number;
+}
+
+const RuleTypeFilter = ({ refreshTrigger }: RuleTypeFilterProps) => {
     const [activeFilter, setActiveFilter] = useState<FilterType>('all');
     const [data, setData] = useState<ApiRulesResponse | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const handleFilterChange = async (filter: FilterType) => {
-        setActiveFilter(filter);
+    const loadRules = useCallback(async (filter?: 'ips' | 'urls' | 'ports') => {
         setLoading(true);
         setError(null);
 
         try {
-            let result;
-            switch (filter) {
-                case 'ips':
-                    result = await fetchIpRules();
-                    break;
-                case 'urls':
-                    result = await fetchUrlRules();
-                    break;
-                case 'ports':
-                    result = await fetchPortRules();
-                    break;
-                default:
-                    result = await fetchRules();
-            }
-
+            const result = await fetchRules(filter);
             if (result.error) {
                 setError(result.error);
                 setData(null);
@@ -45,14 +34,45 @@ const RuleTypeFilter = () => {
         } finally {
             setLoading(false);
         }
+    }, []);
+
+    useEffect(() => {
+        loadRules();
+    }, [loadRules]);
+
+    useEffect(() => {
+        if (refreshTrigger && refreshTrigger > 0) {
+            if (activeFilter === 'all') {
+                loadRules();
+            } else {
+                loadRules(activeFilter);
+            }
+        }
+    }, [refreshTrigger, activeFilter, loadRules]);
+
+    const handleFilterChange = (filter: FilterType) => {
+        setActiveFilter(filter);
+        if (filter === 'all') {
+            loadRules(); 
+        } else {
+            loadRules(filter);
+        }
     };
 
-    const renderFilteredRules = () => {
+    const handleRuleChange = useCallback(() => {
+        if (activeFilter === 'all') {
+            loadRules();
+        } else {
+            loadRules(activeFilter);
+        }
+    }, [activeFilter, loadRules]);
+
+    const renderRules = () => {
         if (loading) {
             return (
                 <div className="text-center py-8">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                    <p className="mt-2 text-gray-600">Loading {activeFilter} rules...</p>
+                    <p className="mt-2 text-gray-600">Loading rules...</p>
                 </div>
             );
         }
@@ -60,22 +80,26 @@ const RuleTypeFilter = () => {
         if (error) {
             return (
                 <div className="text-center py-8">
-                    <div className="text-red-500 text-4xl mb-2">⚠️</div>
+                    <div className="text-red-500 text-4xl mb-2">!</div>
                     <p className="text-red-500">{error}</p>
                 </div>
             );
         }
 
         if (!data) {
-            return null;
+            return (
+                <div className="text-center py-8">
+                    <p className="text-gray-500">No rules data available</p>
+                </div>
+            );
         }
 
-        // Show filtered view based on active filter
+        // Show filtered view for specific types
         if (activeFilter === 'ips' && data.ips) {
             return (
                 <div>
                     <h4 className="font-medium mb-3 text-blue-600 border-b pb-2">IP Addresses</h4>
-                    <RulesList typeRules={data.ips} type="ip" />
+                    <RulesList typeRules={data.ips} type="ip" onRuleChange={handleRuleChange} />
                 </div>
             );
         }
@@ -84,7 +108,7 @@ const RuleTypeFilter = () => {
             return (
                 <div>
                     <h4 className="font-medium mb-3 text-green-600 border-b pb-2">URLs</h4>
-                    <RulesList typeRules={data.urls} type="url" />
+                    <RulesList typeRules={data.urls} type="url" onRuleChange={handleRuleChange} />
                 </div>
             );
         }
@@ -93,25 +117,24 @@ const RuleTypeFilter = () => {
             return (
                 <div>
                     <h4 className="font-medium mb-3 text-purple-600 border-b pb-2">Ports</h4>
-                    <RulesList typeRules={data.ports} type="port" />
+                    <RulesList typeRules={data.ports} type="port" onRuleChange={handleRuleChange} />
                 </div>
             );
         }
 
-        // Show all rules in the original layout
         return (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div>
                     <h4 className="font-medium mb-3 text-blue-600 border-b pb-2">IP Addresses</h4>
-                    <RulesList typeRules={data.ips || { blacklist: [], whitelist: [] }} type="ip" />
+                    <RulesList typeRules={data.ips || { blacklist: [], whitelist: [] }} type="ip" onRuleChange={handleRuleChange} />
                 </div>
                 <div>
                     <h4 className="font-medium mb-3 text-green-600 border-b pb-2">URLs</h4>
-                    <RulesList typeRules={data.urls || { blacklist: [], whitelist: [] }} type="url" />
+                    <RulesList typeRules={data.urls || { blacklist: [], whitelist: [] }} type="url" onRuleChange={handleRuleChange} />
                 </div>
                 <div>
                     <h4 className="font-medium mb-3 text-purple-600 border-b pb-2">Ports</h4>
-                    <RulesList typeRules={data.ports || { blacklist: [], whitelist: [] }} type="port" />
+                    <RulesList typeRules={data.ports || { blacklist: [], whitelist: [] }} type="port" onRuleChange={handleRuleChange} />
                 </div>
             </div>
         );
@@ -148,7 +171,7 @@ const RuleTypeFilter = () => {
                 </div>
             </div>
 
-            {renderFilteredRules()}
+            {renderRules()}
         </div>
     );
 };

@@ -24,7 +24,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: sh -c "npx drizzle-kit migrate || true && (npm run start:prod || npm run start || node dist/main.js || node dist/index.js)"
+    command: sh -c "(npm run start:prod || npm run start || node dist/main.js || node dist/index.js)"
     ports:
       - "4000:4000"
     restart: unless-stopped

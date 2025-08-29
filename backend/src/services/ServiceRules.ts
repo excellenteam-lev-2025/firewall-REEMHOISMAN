@@ -6,23 +6,23 @@ import {HttpError} from "../utils/errors.js";
 import { RuleType } from "../types/common.js";
 import net  from 'net';
 
-function sendRuleToC(rule) {
-    const client = new net.Socket();
+// function sendRuleToC(rule) {
+//     const client = new net.Socket();
     
-    client.connect(9999, '172.17.0.1', () => {
-        const json = JSON.stringify(rule);
-        client.write(json);
-    });
+//     client.connect(9999, '172.17.0.1', () => {
+//         const json = JSON.stringify(rule);
+//         client.write(json);
+//     });
     
-    client.on('data', (data) => {
-        console.log('C handler response:', data.toString());
-        client.destroy();
-    });
-}
+//     client.on('data', (data) => {
+//         console.log('C handler response:', data.toString());
+//         client.destroy();
+//     });
+// }
 
 export const addRules = async (req:Request, res:Response, next:NextFunction) => {
     try {
-        sendRuleToC(req.body);
+       // sendRuleToC(req.body);
         const db = Database.getInstance().getDb();
         await db.transaction(async (trx) => {
             await repo.addRules(trx, req.body);
