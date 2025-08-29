@@ -117,26 +117,36 @@ static unsigned int packet_port_hook(void *priv, struct sk_buff *skb, const stru
         struct tcphdr *tcph = tcp_hdr(skb);
         if (!tcph) return NF_ACCEPT;
 
-        if (is_blocked_port(tcph->source, blocked_src_ports, src_port_num)) {
-            printk(KERN_INFO "[FIREWALL] Blocked source TCP port: %u\n", ntohs(tcph->source));
-            return NF_DROP;
-        }
-        if (is_blocked_port(tcph->dest, blocked_dest_ports, dest_port_num)) {
-            printk(KERN_INFO "[FIREWALL] Blocked dest TCP port: %u\n", ntohs(tcph->dest));
-            return NF_DROP;
+        {
+            uint16_t sport = ntohs(tcph->source);
+            uint16_t dport = ntohs(tcph->dest);
+
+            if (is_blocked_port(sport, blocked_src_ports, src_port_num)) {
+                printk(KERN_INFO "[FIREWALL] Blocked source TCP port: %u\n", sport);
+                return NF_DROP;
+            }
+            if (is_blocked_port(dport, blocked_dest_ports, dest_port_num)) {
+                printk(KERN_INFO "[FIREWALL] Blocked dest TCP port: %u\n", dport);
+                return NF_DROP;
+            }
         }
     }
     else if (ip_header->protocol == IPPROTO_UDP) {
         struct udphdr *udph = udp_hdr(skb);
         if (!udph) return NF_ACCEPT;
 
-        if (is_blocked_port(udph->source, blocked_src_ports, src_port_num)) {
-            printk(KERN_INFO "[FIREWALL] Blocked source UDP port: %u\n", ntohs(udph->source));
-            return NF_DROP;
-        }
-        if (is_blocked_port(udph->dest, blocked_dest_ports, dest_port_num)) {
-            printk(KERN_INFO "[FIREWALL] Blocked dest UDP port: %u\n", ntohs(udph->dest));
-            return NF_DROP;
+        {
+            uint16_t sport = ntohs(udph->source);
+            uint16_t dport = ntohs(udph->dest);
+
+            if (is_blocked_port(sport, blocked_src_ports, src_port_num)) {
+                printk(KERN_INFO "[FIREWALL] Blocked source UDP port: %u\n", sport);
+                return NF_DROP;
+            }
+            if (is_blocked_port(dport, blocked_dest_ports, dest_port_num)) {
+                printk(KERN_INFO "[FIREWALL] Blocked dest UDP port: %u\n", dport);
+                return NF_DROP;
+            }
         }
     }
 
@@ -147,13 +157,21 @@ static void netlink_recv_msg(struct sk_buff *skb){
     struct nlmsghdr *nlh;
     struct sk_buff *skb_out;
     KernelRule *rule;
+    KernelRule local_rule;
     char response[] = "Rule received";
     int pid, res;
-    
-    nlh = (struct nlmsghdr *)skb->data;
-    rule = (KernelRule *)nlmsg_data(nlh);
-    pid = nlh->nlmsg_pid;
-    
+
+    nlh = nlmsg_hdr(skb);
+    if (nlmsg_len(nlh) < sizeof(local_rule)) {
+        printk(KERN_ERR "[NETLINK] payload too small: %u\n", nlmsg_len(nlh));
+        return;
+    }
+
+    memcpy(&local_rule, nlmsg_data(nlh), sizeof(local_rule));
+    rule = &local_rule;
+
+    pid = NETLINK_CB(skb).portid;
+
     printk(KERN_INFO "[NETLINK] received rule: cmd=%c, type=%c\n", rule->cmd, rule->rule_type);
     
     if (rule->cmd == 'A') { 
@@ -217,8 +235,8 @@ static int __init my_netfilter_init(void){
     
     nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, &cfg);
     if (!nl_sk) {
-        printk(KERN_ALERT "[ERROR] create netlink socket failed\n");
-        return -10;
+        printk(KERN_INFO "[ERROR] create netlink socket failed\n");
+        return -ENOMEM;
     }
     printk(KERN_INFO "[NETLINK] netlink socket connection created\n");
     

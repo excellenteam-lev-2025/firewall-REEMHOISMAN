@@ -1,9 +1,13 @@
-obj-m += netfilter_hooks.o
+obj-m += kernel_module.o
 
+all: module userspace
 
-all: 
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules 
+module:
+	$(MAKE) -C /lib/modules/$(shell uname -r)/build M=$(CURDIR) modules
 
-	
-clean: 
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+userspace:
+	gcc -Wall -Wextra -O2 -g policy_client.c -o policy_client -lcjson
+
+clean:
+	$(MAKE) -C /lib/modules/$(shell uname -r)/build M=$(CURDIR) clean
+	rm -f policy_client

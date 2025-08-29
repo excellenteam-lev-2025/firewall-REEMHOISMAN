@@ -7,6 +7,7 @@
 #include <linux/netlink.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
 #include "cjson/cJSON.h"
 
 #define NETLINK_USER 31
@@ -29,52 +30,82 @@ typedef struct {
 int send_to_kernel(KernelRule *rule) {
     struct sockaddr_nl src_addr, dest_addr;
     struct nlmsghdr *nlh = NULL;
-    struct iovec iov;
     int sock_fd;
-    struct msghdr msg;
-    
+
     sock_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
     if (sock_fd < 0) {
         printf("[ERROR] failed to create netlink socket\n");
         return -1;
     }
-    
+
+    struct timeval tv = { .tv_sec = 2, .tv_usec = 0 };
+    setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
     memset(&src_addr, 0, sizeof(src_addr));
     src_addr.nl_family = AF_NETLINK;
     src_addr.nl_pid = getpid();
-    
-    bind(sock_fd, (struct sockaddr*)&src_addr, sizeof(src_addr));
-    
+
+    if (bind(sock_fd, (struct sockaddr*)&src_addr, sizeof(src_addr)) < 0) {
+        perror("bind");
+        close(sock_fd);
+        return -1;
+    }
+
     memset(&dest_addr, 0, sizeof(dest_addr));
     dest_addr.nl_family = AF_NETLINK;
-    dest_addr.nl_pid = 0;    // For kernel
+    dest_addr.nl_pid = 0;    // kernel
     dest_addr.nl_groups = 0; // unicast
-    
+
     nlh = (struct nlmsghdr *)malloc(NLMSG_SPACE(sizeof(KernelRule)));
     memset(nlh, 0, NLMSG_SPACE(sizeof(KernelRule)));
-    nlh->nlmsg_len = NLMSG_SPACE(sizeof(KernelRule));
+    nlh->nlmsg_len = NLMSG_LENGTH(sizeof(KernelRule));
     nlh->nlmsg_pid = getpid();
     nlh->nlmsg_flags = 0;
-    
+
     memcpy(NLMSG_DATA(nlh), rule, sizeof(KernelRule));
-    
-    iov.iov_base = (void *)nlh;
-    iov.iov_len = nlh->nlmsg_len;
-    msg.msg_name = (void *)&dest_addr;
-    msg.msg_namelen = sizeof(dest_addr);
-    msg.msg_iov = &iov;
-    msg.msg_iovlen = 1;
-    
+
+    struct iovec siov = { .iov_base = (void *)nlh, .iov_len = nlh->nlmsg_len };
+    struct msghdr smsg = {
+        .msg_name = (void *)&dest_addr,
+        .msg_namelen = sizeof(dest_addr),
+        .msg_iov = &siov,
+        .msg_iovlen = 1
+    };
+
     printf("[NETLINK] Sending rule to kernel: cmd=%c, type=%c\n", rule->cmd, rule->rule_type);
-    sendmsg(sock_fd, &msg, 0);
-    
-    recvmsg(sock_fd, &msg, 0);
-    printf("[NETLINK] Kernel acknowledged\n");
-    
+    if (sendmsg(sock_fd, &smsg, 0) < 0) {
+        perror("sendmsg");
+        free(nlh);
+        close(sock_fd);
+        return -1;
+    }
+
+    char rbuf[256] = {0};
+    struct sockaddr_nl raddr;
+    struct iovec riov = { .iov_base = rbuf, .iov_len = sizeof(rbuf) };
+    struct msghdr rmsg = {
+        .msg_name = &raddr,
+        .msg_namelen = sizeof(raddr),
+        .msg_iov = &riov,
+        .msg_iovlen = 1
+    };
+
+    int n = recvmsg(sock_fd, &rmsg, 0);
+    if (n < 0) {
+        perror("recvmsg");
+        printf("[NETLINK ERROR!] No acknowledgment from kernel\n");
+    } else {
+        struct nlmsghdr *in = (struct nlmsghdr *)rbuf;
+        int pay = NLMSG_PAYLOAD(in, 0);  
+        if (pay < 0) pay = 0;
+        printf("[NETLINK] Kernel acknowledged: %.*s\n", pay, (char*)NLMSG_DATA(in));
+    }
+
     close(sock_fd);
     free(nlh);
     return 0;
 }
+
 
 uint32_t ip_to_int(const char *ip) {
     struct in_addr addr;
