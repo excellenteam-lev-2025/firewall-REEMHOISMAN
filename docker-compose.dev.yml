@@ -1,0 +1,40 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: 12345
+      POSTGRES_DB: firewall_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      ./backend/.env.dev
+    depends_on:
+      - db
+    ports:
+      - "4000:4000"
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+    env_file:
+      ./frontend/.env.dev
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    command: ["npm", "run", "dev"]
+    restart: always
+
+volumes:
+  db-data:

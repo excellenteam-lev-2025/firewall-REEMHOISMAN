@@ -2,7 +2,6 @@ import { withData } from './testSetup.js';
 import request from 'supertest';
 import app from '../app.js';
 
-// test suite for put toggle endpoint
 describe('PUT Toggle Endpoint', () => {
     
     beforeEach(() => {

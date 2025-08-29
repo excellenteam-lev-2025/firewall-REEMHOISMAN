@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { TABS } from "@/app/types/tabsTypes";
+import { TABS } from "@/api/types";
 
 const Navbar = () => (
     <nav className="mx-auto w-fit rounded-lg bg-zinc-300 shadow-md">

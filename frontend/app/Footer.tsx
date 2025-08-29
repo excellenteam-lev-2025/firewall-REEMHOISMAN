@@ -8,8 +8,8 @@ const Footer= () => (
                     <ul className="flex flex-wrap items-center gap-3">
                         <li><Link href="/" className="text-zinc-600 hover:text-zinc-950 transition">Home</Link></li>
                         <li><Link href="/firewall-rules" className="text-zinc-600 hover:text-zinc-950 transition">Rules</Link></li>
-                        <li><Link href="/profile" className="text-zinc-600 hover:text-zinc-950 transition">Profile</Link></li>
-                        <li><Link href="/settings" className="text-zinc-600 hover:text-zinc-950 transition">Settings</Link></li>
+                        <li className="text-zinc-600 hover:text-zinc-950 transition">Profile</li>
+                        <li className="text-zinc-600 hover:text-zinc-950 transition">Settings</li>
                     </ul>
                 </nav>
             </div>

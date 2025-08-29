@@ -71,7 +71,7 @@ describe('POST Endpoints', () => {
             .expect(201);
     });
 
-    // Edge cases
+
     test('Reject invalid IP - out of range octets', async () => {
         await request(app)
             .post('/api/firewall/ip')

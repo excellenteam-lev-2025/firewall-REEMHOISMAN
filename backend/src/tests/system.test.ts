@@ -13,13 +13,13 @@ describe('System Test - Happy Flow', () => {
     });
 
     test('Complete firewall management workflow', async () => {
-        // get initial rules state
+
         let res = await request(app).get('/api/firewall/rules').expect(200);
         expect(res.body).toHaveProperty('ips');
         expect(res.body).toHaveProperty('ports');
         expect(res.body).toHaveProperty('urls');
 
-        // add new IP rules (both blacklist and whitelist)
+
         await request(app)
             .post('/api/firewall/ip')
             .send({ values: ['10.0.0.50', '172.16.0.100'], mode: 'blacklist', type: 'ip' })
@@ -30,7 +30,7 @@ describe('System Test - Happy Flow', () => {
             .send({ values: ['192.168.1.10'], mode: 'whitelist', type: 'ip' })
             .expect(201);
 
-        // add new port rules
+
         await request(app)
             .post('/api/firewall/port')
             .send({ values: [8080, 9000], mode: 'blacklist', type: 'port' })
@@ -41,7 +41,7 @@ describe('System Test - Happy Flow', () => {
             .send({ values: [80], mode: 'whitelist', type: 'port' })
             .expect(201);
 
-        // add new URL rules
+
         await request(app)
             .post('/api/firewall/url')
             .send({ values: ['https://malware.com', 'http://spam.net'], mode: 'blacklist', type: 'url' })
@@ -52,13 +52,13 @@ describe('System Test - Happy Flow', () => {
             .send({ values: ['https://safe-site.org'], mode: 'whitelist', type: 'url' })
             .expect(201);
 
-        // rules endpoint still works (mocked data)
+
         res = await request(app).get('/api/firewall/rules').expect(200);
         expect(res.body).toHaveProperty('ips');
         expect(res.body).toHaveProperty('ports');
         expect(res.body).toHaveProperty('urls');
 
-        // toggle some rules (deactivate)
+
         await request(app)
             .put('/api/firewall/rules')
             .send({
@@ -68,7 +68,7 @@ describe('System Test - Happy Flow', () => {
             })
             .expect(200);
 
-        // delete some rules
+
         await request(app)
             .delete('/api/firewall/ip')
             .send({ values: ['10.0.0.50'], mode: 'blacklist', type: 'ip' })
@@ -84,10 +84,10 @@ describe('System Test - Happy Flow', () => {
             .send({ values: ['https://malware.com'], mode: 'blacklist', type: 'url' })
             .expect(200);
 
-        // final verification (get rules)
+
         await request(app).get('/api/firewall/rules').expect(200);
 
-        // test error cases
+
         await request(app)
             .post('/api/firewall/ip')
             .send({ values: ['invalid.ip'], mode: 'blacklist', type: 'ip' })
@@ -102,13 +102,13 @@ describe('System Test - Happy Flow', () => {
     test('Duplicate prevention workflow', async () => {
         mockSuccess();
         
-        // Add a rule
+
         await request(app)
             .post('/api/firewall/ip')
             .send({ values: ['1.1.1.1'], mode: 'blacklist', type: 'ip' })
             .expect(201);
 
-        // Try to add the same rule again (should fail)
+
         mockConflict();
         await request(app)
             .post('/api/firewall/ip')

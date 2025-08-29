@@ -1,7 +1,9 @@
 node_modules/
 dist/
-.env
+.env*
 .idea/
 logs/
 coverage/
-/coverage/
+*.log
+.DS_Store
+*.tsbuildinfo
