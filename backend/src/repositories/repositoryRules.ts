@@ -37,7 +37,6 @@ export const deleteRule = async (trx:any, toDelete: Data) => {
 
 export const getAllRules = async (typeFilter?: string) => {
     const db = Database.getInstance().getDb();
-    console.log("hiii")
     
     let dbType: string | undefined;
     if (typeFilter === 'ips') {

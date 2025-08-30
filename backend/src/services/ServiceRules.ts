@@ -79,30 +79,49 @@ export const getAllRules = async (req: Request, res: Response, next: NextFunctio
 
 
 export const toggleRuleStatus = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const updated:any = []
-        const db = Database.getInstance().getDb();
-        await db.transaction(async (trx) => {
+  try {
+    const db = Database.getInstance().getDb();
+    const updated: any[] = [];
 
-        for (const payload of Object.values(req.body) as Partial<Data>[]) {
+    // עוזר קטן לקריאת values – אם אובייקטים, נחפש value/ip/port, אחרת נשאיר כמו שזה
+    const valuesOf = (arr: any[]): (string | number)[] => {
+      if (!Array.isArray(arr) || arr.length === 0) return [];
+      if (typeof arr[0] === 'object' && arr[0] !== null) {
+        return arr
+          .map(v => (v.value ?? v.ip ?? v.port))
+          .filter(v => v !== undefined && v !== null);
+      }
+      return arr as (string | number)[];
+    };
 
-            if (!payload || Object.keys(payload).length === 0) continue;
+    // עדכון DB – פשוט מריצים את הטוגל לכל סקשן שיש
+    await db.transaction(async (trx) => {
+      for (const key of ['ips', 'ports'] as const) {
+        const section = (req.body as any)[key];
+        if (!section) continue;
+        const rows = await repo.toggleRules(trx, section);
+        updated.push(...rows);
+      }
+    });
 
-            const rows = await repo.toggleRules(trx, payload as Data);
-            if (rows.length !== payload.ids?.length) {
-                throw new HttpError(404, "One or more rules not found");
-            }
-            updated.push(...rows);
-        }
-        });
-        await dispatcher.sendRule({ rules: updated }, "update");
-        console.log('[Controller] Toggle sent to firewall');
-        console.info(`Rules updated: ${JSON.stringify(updated)}`);
-        return res.status(200).json({ updated });
+    for (const key of ['ips', 'ports'] as const) {
+      const section = (req.body as any)[key];
+      if (!section) continue;
 
-    } catch (err) {
-        return next(err);
+      const type = key === 'ips' ? 'ip' : 'port';
+      const mode = section.mode === 'whitelist' ? 'whitelist' : 'blacklist';
+      const action = mode === 'blacklist' ? 'delete' : 'add';
+      const values = valuesOf(section.values);
+
+      if (values.length === 0) continue;
+
+      await dispatcher.sendRule({ type, mode, values }, action);
     }
+
+    return res.status(200).json({ updated, status: 'success' });
+  } catch (err) {
+    return next(err);
+  }
 };
 
 

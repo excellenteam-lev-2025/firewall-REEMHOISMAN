@@ -1,5 +1,6 @@
 // PolicyDispatcher.ts
 import net from 'net';
+import { getAllRules } from '../repositories/repositoryRules';
 
 interface FirewallRule {
     action?: string;
@@ -99,14 +100,11 @@ class PolicyDispatcher {
     }
 
     public async sendRule(data: any, action: string): Promise<any> {
-        // Always add action to the payload
         const payload: FirewallRule = { ...data, action };
 
-        // Format based on action
         switch (action) {
             case 'add':
             case 'delete':
-                // Standard format for add/delete
                 if (data.type && data.mode && data.values) {
                     return this.sendRaw({
                         action,
@@ -118,7 +116,6 @@ class PolicyDispatcher {
                 break;
 
             case 'update':
-                // For toggle - send updated rules
                 if (data.rules || data.updated) {
                     const rules = data.updated || data.rules;
                     const promises = [];
@@ -152,57 +149,32 @@ class PolicyDispatcher {
         return this.sendRaw(payload);
     }
 
-    public async blockIP(ips: string | string[]): Promise<any> {
-        return this.sendRule({
-            type: 'ip',
-            mode: 'blacklist',
-            values: Array.isArray(ips) ? ips : [ips]
-        }, 'add');
+    public async syncRules(): Promise<void> {
+    const [ips, ports] = await Promise.all([
+        getAllRules("ips").then(rs =>
+        rs.filter(r => r.mode === "blacklist" && r.active).map(r => r.value)
+        ),
+        getAllRules("ports").then(rs =>
+        rs.filter(r => r.mode === "blacklist" && r.active).map(r => r.value)
+        ),
+    ]);
+
+    const jobs: Promise<unknown>[] = [];
+
+    if (ips.length > 0) {
+        const ipPayload = { type: "ip", mode: "blacklist", values: [...ips] };   // clone!
+        jobs.push(this.sendRule(ipPayload, "add"));
     }
 
-    public async unblockIP(ips: string | string[]): Promise<any> {
-        return this.sendRule({
-            type: 'ip',
-            mode: 'blacklist',
-            values: Array.isArray(ips) ? ips : [ips]
-        }, 'delete');
+    if (ports.length > 0) {
+        const portPayload = { type: "port", mode: "blacklist", values: [...ports] }; // clone!
+        jobs.push(this.sendRule(portPayload, "add"));
     }
 
-    public async blockPort(ports: number | number[]): Promise<any> {
-        return this.sendRule({
-            type: 'port',
-            mode: 'blacklist',
-            values: Array.isArray(ports) ? ports : [ports]
-        }, 'add');
+    await Promise.all(jobs);
+    console.info("[PolicyDispatcher] syncRules completed");
     }
-
-    public async unblockPort(ports: number | number[]): Promise<any> {
-        return this.sendRule({
-            type: 'port',
-            mode: 'blacklist',
-            values: Array.isArray(ports) ? ports : [ports]
-        }, 'delete');
-    }
-
-    public async clearAllRules(): Promise<any> {
-        return this.sendRule({}, 'clear');
-    }
-
-    public async syncRules(rules: any[]): Promise<any> {
-        // Clear all first
-        await this.clearAllRules();
-        
-        // Add all active rules
-        const promises = rules
-            .filter(r => r.active)
-            .map(rule => this.sendRule({
-                type: rule.type,
-                mode: rule.mode || 'blacklist',
-                values: [rule.value]
-            }, 'add'));
-        
-        return Promise.all(promises);
-    }
+ 
 
     public getStatus(): { connected: boolean; host: string; port: number } {
         return {
