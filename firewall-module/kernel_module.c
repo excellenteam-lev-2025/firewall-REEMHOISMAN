@@ -7,264 +7,288 @@
 #include <linux/udp.h>
 #include <linux/skbuff.h>
 #include <linux/inet.h>
-#include <net/sock.h>
 #include <linux/netlink.h>
+#include <net/sock.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Re'em Hoisman");
-MODULE_DESCRIPTION("Netfilter Kernel Module with Netlink support");
+MODULE_DESCRIPTION("netfilter firewall controlled via netlink");
 
-#define MAX_RULES 2000
-#define NETLINK_USER 31
+#define MAX_RULES      2000
+#define NETLINK_USER   31
 
+/* netlink message types */
+#define NLMSG_RULE_ADD 0x10
+#define NLMSG_RULE_DEL 0x11
+#define NLMSG_RULE_CLR 0x12
+
+/* payload from userspace */
 typedef struct {
-    char cmd;           
-    char rule_type;     
-    uint32_t ip_addr;   
-    uint16_t port;      
-} KernelRule;
+    char     rule_type;   /* 'S' = src ip, 'D' = dst ip, 'P' = port */
+    uint32_t ip_addr;     /* network byte order */
+    uint16_t port;        /* network byte order */
+} kernel_rule_t;
 
-static unsigned int packet_ip_hook(void *priv, struct sk_buff *skb,
-                                   const struct nf_hook_state *state);
-static unsigned int packet_port_hook(void *priv, struct sk_buff *skb,
-                                     const struct nf_hook_state *state);
+/* global tables */
+static uint32_t src_ips[MAX_RULES];  int src_ip_count;
+static uint32_t dst_ips[MAX_RULES];  int dst_ip_count;
+static uint16_t src_ports[MAX_RULES];int src_port_count; /* host order */
+static uint16_t dst_ports[MAX_RULES];int dst_port_count; /* host order */
 
-static struct nf_hook_ops nfho_src_ip = {
-    .hook     = packet_ip_hook,
-    .pf       = PF_INET,
-    .hooknum  = NF_INET_PRE_ROUTING,
-    .priority = NF_IP_PRI_FIRST,
-};
+static struct sock *nl_sock;
 
-static struct nf_hook_ops nfho_dest_ip = {
-    .hook     = packet_ip_hook,
-    .pf       = PF_INET,
-    .hooknum  = NF_INET_POST_ROUTING,
-    .priority = NF_IP_PRI_FIRST,
-};
+/* ------------------------------------------------------------
+ * helpers: add / delete with logging
+ * ------------------------------------------------------------ */
 
-static struct nf_hook_ops nfho_src_port = {
-    .hook     = packet_port_hook,
-    .pf       = PF_INET,
-    .hooknum  = NF_INET_PRE_ROUTING,
-    .priority = NF_IP_PRI_FIRST,
-};
-
-static struct nf_hook_ops nfho_dest_port = {
-    .hook     = packet_port_hook,
-    .pf       = PF_INET,
-    .hooknum  = NF_INET_POST_ROUTING,
-    .priority = NF_IP_PRI_FIRST,
-};
-
-static struct sock *nl_sk = NULL;
-
-static uint32_t blocked_src_ips[MAX_RULES] = {0};
-static int src_ips_num = 0;
-
-static uint32_t blocked_dest_ips[MAX_RULES] = {0};
-static int dest_ips_num = 0;
-
-static uint16_t blocked_src_ports[MAX_RULES] = {0};
-static int src_port_num = 0;
-
-static uint16_t blocked_dest_ports[MAX_RULES] = {0};
-static int dest_port_num = 0;
-
-
-static bool is_blocked_ip(uint32_t addr, const uint32_t *tbl, int n){
+static void add_src_ip(uint32_t ip_nbo) {
     int i;
-    for (i = 0; i < n; i++)
-        if (addr == tbl[i]) return true;
-    return false;
+    for (i=0; i<src_ip_count; i++)
+        if (src_ips[i] == ip_nbo) {
+            printk(KERN_INFO "[FW] add src ip skipped duplicate: %pI4\n", &ip_nbo);
+            return;
+        }
+    if (src_ip_count >= MAX_RULES) {
+        printk(KERN_INFO "[FW] add src ip skipped full: %pI4\n", &ip_nbo);
+        return;
+    }
+    src_ips[src_ip_count++] = ip_nbo;
+    printk(KERN_INFO "[FW] add src ip: %pI4 (total %d)\n", &ip_nbo, src_ip_count);
 }
 
-static bool is_blocked_port(uint16_t port, const uint16_t *tbl, int n){
+static void add_dst_ip(uint32_t ip_nbo) {
     int i;
-    for (i = 0; i < n; i++)
-        if (port == tbl[i]) return true;
-    return false;
+    for (i=0; i<dst_ip_count; i++)
+        if (dst_ips[i] == ip_nbo) {
+            printk(KERN_INFO "[FW] add dst ip skipped duplicate: %pI4\n", &ip_nbo);
+            return;
+        }
+    if (dst_ip_count >= MAX_RULES) {
+        printk(KERN_INFO "[FW] add dst ip skipped full: %pI4\n", &ip_nbo);
+        return;
+    }
+    dst_ips[dst_ip_count++] = ip_nbo;
+    printk(KERN_INFO "[FW] add dst ip: %pI4 (total %d)\n", &ip_nbo, dst_ip_count);
 }
 
-static unsigned int packet_ip_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state){
-    const struct iphdr *ip_header;
+static void add_port(uint16_t port_host) {
+    int i;
+    for (i=0; i<src_port_count; i++)
+        if (src_ports[i] == port_host) {
+            printk(KERN_INFO "[FW] add port skipped duplicate: %u\n", port_host);
+            return;
+        }
+    if (src_port_count >= MAX_RULES || dst_port_count >= MAX_RULES) {
+        printk(KERN_INFO "[FW] add port skipped full: %u\n", port_host);
+        return;
+    }
+    src_ports[src_port_count++] = port_host;
+    dst_ports[dst_port_count++] = port_host;
+    printk(KERN_INFO "[FW] add port: %u (totals %d/%d)\n",
+           port_host, src_port_count, dst_port_count);
+}
 
-    if (!skb) return NF_ACCEPT;
-    ip_header = ip_hdr(skb);
-    if (!ip_header) return NF_ACCEPT;
+static void del_src_ip(uint32_t ip_nbo) {
+    int i;
+    for (i=0; i<src_ip_count; i++) {
+        if (src_ips[i] == ip_nbo) {
+            src_ips[i] = src_ips[src_ip_count-1];
+            src_ip_count--;
+            printk(KERN_INFO "[FW] del src ip: %pI4 (total %d)\n", &ip_nbo, src_ip_count);
+            return;
+        }
+    }
+    printk(KERN_INFO "[FW] del src ip not found: %pI4\n", &ip_nbo);
+}
 
-    if (is_blocked_ip(ip_header->saddr, blocked_src_ips, src_ips_num)) {
-        printk(KERN_INFO "[FIREWALL] Blocked source IP: %pI4\n", &ip_header->saddr);
-        return NF_DROP;
+static void del_dst_ip(uint32_t ip_nbo) {
+    int i;
+    for (i=0; i<dst_ip_count; i++) {
+        if (dst_ips[i] == ip_nbo) {
+            dst_ips[i] = dst_ips[dst_ip_count-1];
+            dst_ip_count--;
+            printk(KERN_INFO "[FW] del dst ip: %pI4 (total %d)\n", &ip_nbo, dst_ip_count);
+            return;
+        }
+    }
+    printk(KERN_INFO "[FW] del dst ip not found: %pI4\n", &ip_nbo);
+}
+
+static void del_port(uint16_t port_host) {
+    int i;
+    for (i=0; i<src_port_count; i++) {
+        if (src_ports[i] == port_host) {
+            src_ports[i] = src_ports[src_port_count-1];
+            src_port_count--;
+        }
+    }
+    for (i=0; i<dst_port_count; i++) {
+        if (dst_ports[i] == port_host) {
+            dst_ports[i] = dst_ports[dst_port_count-1];
+            dst_port_count--;
+        }
+    }
+    printk(KERN_INFO "[FW] del port: %u (totals %d/%d)\n",
+           port_host, src_port_count, dst_port_count);
+}
+
+/* ------------------------------------------------------------
+ * packet hooks
+ * ------------------------------------------------------------ */
+
+static unsigned int hook_ip(void *priv, struct sk_buff *skb,
+                            const struct nf_hook_state *state) {
+    const struct iphdr *iph = ip_hdr(skb);
+    int i;
+    if (!iph) return NF_ACCEPT;
+
+    for (i=0; i<src_ip_count; i++)
+        if (iph->saddr == src_ips[i]) {
+            printk(KERN_INFO "[FW] drop src ip packet: %pI4\n", &iph->saddr);
+            return NF_DROP;
+        }
+
+    for (i=0; i<dst_ip_count; i++)
+        if (iph->daddr == dst_ips[i]) {
+            printk(KERN_INFO "[FW] drop dst ip packet: %pI4\n", &iph->daddr);
+            return NF_DROP;
+        }
+
+    return NF_ACCEPT;
+}
+
+static unsigned int hook_port(void *priv, struct sk_buff *skb,
+                              const struct nf_hook_state *state) {
+    const struct iphdr *iph = ip_hdr(skb);
+    if (!iph) return NF_ACCEPT;
+
+    if (iph->protocol == IPPROTO_TCP) {
+        const struct tcphdr *th = tcp_hdr(skb);
+        if (!th) return NF_ACCEPT;
+
+        uint16_t s = ntohs(th->source);
+        uint16_t d = ntohs(th->dest);
+
+        for (int i=0; i<src_port_count; i++)
+            if (s == src_ports[i]) {
+                printk(KERN_INFO "[FW] drop src tcp port: %u\n", s);
+                return NF_DROP;
+            }
+        for (int i=0; i<dst_port_count; i++)
+            if (d == dst_ports[i]) {
+                printk(KERN_INFO "[FW] drop dst tcp port: %u\n", d);
+                return NF_DROP;
+            }
     }
 
-    if (is_blocked_ip(ip_header->daddr, blocked_dest_ips, dest_ips_num)) {
-        printk(KERN_INFO "[FIREWALL] Blocked dest IP: %pI4\n", &ip_header->daddr);
-        return NF_DROP;
+    else if (iph->protocol == IPPROTO_UDP) {
+        const struct udphdr *uh = udp_hdr(skb);
+        if (!uh) return NF_ACCEPT;
+
+        uint16_t s = ntohs(uh->source);
+        uint16_t d = ntohs(uh->dest);
+
+        for (int i=0; i<src_port_count; i++)
+            if (s == src_ports[i]) {
+                printk(KERN_INFO "[FW] drop src udp port: %u\n", s);
+                return NF_DROP;
+            }
+        for (int i=0; i<dst_port_count; i++)
+            if (d == dst_ports[i]) {
+                printk(KERN_INFO "[FW] drop dst udp port: %u\n", d);
+                return NF_DROP;
+            }
     }
 
     return NF_ACCEPT;
 }
 
-static unsigned int packet_port_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state){
-    const struct iphdr *ip_header;
+/* ------------------------------------------------------------
+ * netlink receive
+ * ------------------------------------------------------------ */
 
-    if (!skb) return NF_ACCEPT;
-    ip_header = ip_hdr(skb);
-    if (!ip_header) return NF_ACCEPT;
+static void nl_recv(struct sk_buff *skb) {
+    struct nlmsghdr *nlh = nlmsg_hdr(skb);
+    kernel_rule_t rule;
 
-    if (ip_header->protocol == IPPROTO_TCP) {
-        struct tcphdr *tcph = tcp_hdr(skb);
-        if (!tcph) return NF_ACCEPT;
+    if (nlmsg_len(nlh) < sizeof(rule))
+        return;
 
-        {
-            uint16_t sport = ntohs(tcph->source);
-            uint16_t dport = ntohs(tcph->dest);
+    memcpy(&rule, nlmsg_data(nlh), sizeof(rule));
 
-            if (is_blocked_port(sport, blocked_src_ports, src_port_num)) {
-                printk(KERN_INFO "[FIREWALL] Blocked source TCP port: %u\n", sport);
-                return NF_DROP;
-            }
-            if (is_blocked_port(dport, blocked_dest_ports, dest_port_num)) {
-                printk(KERN_INFO "[FIREWALL] Blocked dest TCP port: %u\n", dport);
-                return NF_DROP;
-            }
+    switch (nlh->nlmsg_type) {
+    case NLMSG_RULE_ADD:
+        if (rule.rule_type == 'S')
+            add_src_ip(rule.ip_addr);
+        else if (rule.rule_type == 'D')
+            add_dst_ip(rule.ip_addr);
+        else if (rule.rule_type == 'P')
+            add_port(ntohs(rule.port));
+        break;
+
+    case NLMSG_RULE_DEL:
+        if (rule.rule_type == 'S')
+            del_src_ip(rule.ip_addr);
+        else if (rule.rule_type == 'D')
+            del_dst_ip(rule.ip_addr);
+        else if (rule.rule_type == 'P')
+            del_port(ntohs(rule.port));
+        break;
+
+    case NLMSG_RULE_CLR:
+        if (rule.rule_type == 'S') {
+            src_ip_count = 0;
+            printk(KERN_INFO "[FW] clear src ip table\n");
         }
-    }
-    else if (ip_header->protocol == IPPROTO_UDP) {
-        struct udphdr *udph = udp_hdr(skb);
-        if (!udph) return NF_ACCEPT;
-
-        {
-            uint16_t sport = ntohs(udph->source);
-            uint16_t dport = ntohs(udph->dest);
-
-            if (is_blocked_port(sport, blocked_src_ports, src_port_num)) {
-                printk(KERN_INFO "[FIREWALL] Blocked source UDP port: %u\n", sport);
-                return NF_DROP;
-            }
-            if (is_blocked_port(dport, blocked_dest_ports, dest_port_num)) {
-                printk(KERN_INFO "[FIREWALL] Blocked dest UDP port: %u\n", dport);
-                return NF_DROP;
-            }
+        else if (rule.rule_type == 'D') {
+            dst_ip_count = 0;
+            printk(KERN_INFO "[FW] clear dst ip table\n");
         }
+        else if (rule.rule_type == 'P') {
+            src_port_count = 0;
+            dst_port_count = 0;
+            printk(KERN_INFO "[FW] clear port tables\n");
+        }
+        break;
     }
-
-    return NF_ACCEPT;
 }
 
-static void netlink_recv_msg(struct sk_buff *skb){
-    struct nlmsghdr *nlh;
-    struct sk_buff *skb_out;
-    KernelRule *rule;
-    KernelRule local_rule;
-    char response[] = "Rule received";
-    int pid, res;
+/* ------------------------------------------------------------
+ * module init/exit
+ * ------------------------------------------------------------ */
 
-    nlh = nlmsg_hdr(skb);
-    if (nlmsg_len(nlh) < sizeof(local_rule)) {
-        printk(KERN_ERR "[NETLINK] payload too small: %u\n", nlmsg_len(nlh));
-        return;
-    }
+static struct nf_hook_ops hook_src_ip  = { .hook=hook_ip,   .pf=PF_INET, .hooknum=NF_INET_PRE_ROUTING,  .priority=NF_IP_PRI_FIRST };
+static struct nf_hook_ops hook_dst_ip  = { .hook=hook_ip,   .pf=PF_INET, .hooknum=NF_INET_POST_ROUTING, .priority=NF_IP_PRI_FIRST };
+static struct nf_hook_ops hook_src_prt = { .hook=hook_port, .pf=PF_INET, .hooknum=NF_INET_PRE_ROUTING,  .priority=NF_IP_PRI_FIRST };
+static struct nf_hook_ops hook_dst_prt = { .hook=hook_port, .pf=PF_INET, .hooknum=NF_INET_POST_ROUTING, .priority=NF_IP_PRI_FIRST };
 
-    memcpy(&local_rule, nlmsg_data(nlh), sizeof(local_rule));
-    rule = &local_rule;
+static struct netlink_kernel_cfg cfg = { .input = nl_recv };
 
-    pid = NETLINK_CB(skb).portid;
-
-    printk(KERN_INFO "[NETLINK] received rule: cmd=%c, type=%c\n", rule->cmd, rule->rule_type);
-    
-    if (rule->cmd == 'A') { 
-        if (rule->rule_type == 'S' && src_ips_num < MAX_RULES) {
-            blocked_src_ips[src_ips_num++] = rule->ip_addr;
-            printk(KERN_INFO "[RULE] added source IP to blacklist: %pI4 (total: %d)\n", 
-                   &rule->ip_addr, src_ips_num);
-        }
-        else if (rule->rule_type == 'D' && dest_ips_num < MAX_RULES) {
-            blocked_dest_ips[dest_ips_num++] = rule->ip_addr;
-            printk(KERN_INFO "[RULE] added dest IP to blacklist: %pI4 (total: %d)\n", 
-                   &rule->ip_addr, dest_ips_num);
-        }
-        else if (rule->rule_type == 'P') {
-            if (rule->port && src_port_num < MAX_RULES) {
-                blocked_src_ports[src_port_num++] = rule->port;
-                printk(KERN_INFO "[RULE] added port to blacklist: %u\n", ntohs(rule->port));
-            }
-        }
-    }
-    else if (rule->cmd == 'D') { 
-        printk(KERN_INFO "[RULE] delete not implemented yet\n");
-    }
-    else if (rule->cmd == 'C') { 
-        if (rule->rule_type == 'S') {
-            src_ips_num = 0;
-            printk(KERN_INFO "[RULE] cleared source IP blacklist\n");
-        }
-        else if (rule->rule_type == 'D') {
-            dest_ips_num = 0;
-            printk(KERN_INFO "[RULE] cleared dest IP blacklist\n");
-        }
-        else if (rule->rule_type == 'P') {
-            src_port_num = 0;
-            dest_port_num = 0;
-            printk(KERN_INFO "[RULE] cleared port blacklists\n");
-        }
-    }
-    
-    skb_out = nlmsg_new(strlen(response), 0);
-    if (!skb_out) {
-        printk(KERN_ERR "[NETLINK] failed to allocate new skb (for response)\n");
-        return;
-    }
-    
-    nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, strlen(response), 0);
-    NETLINK_CB(skb_out).dst_group = 0;
-    strncpy(nlmsg_data(nlh), response, strlen(response));
-    
-    res = nlmsg_unicast(nl_sk, skb_out, pid);
-    if (res < 0)
-        printk(KERN_INFO "[NETLINK] error sending response to user\n");
-}
-
-static struct netlink_kernel_cfg cfg = {
-    .input = netlink_recv_msg,
-};
-
-static int __init my_netfilter_init(void){
-    printk(KERN_INFO "[MODULE] Initializing Netfilter Module...\n");
-    
-    nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, &cfg);
-    if (!nl_sk) {
-        printk(KERN_INFO "[ERROR] create netlink socket failed\n");
+static int __init fw_init(void) {
+    nl_sock = netlink_kernel_create(&init_net, NETLINK_USER, &cfg);
+    if (!nl_sock)
         return -ENOMEM;
-    }
-    printk(KERN_INFO "[NETLINK] netlink socket connection created\n");
-    
-    nf_register_net_hook(&init_net, &nfho_src_ip);
-    nf_register_net_hook(&init_net, &nfho_dest_ip);
-    nf_register_net_hook(&init_net, &nfho_src_port);
-    nf_register_net_hook(&init_net, &nfho_dest_port);
-    
-    printk(KERN_INFO "[HOOKS] 4 netfilter hooks registered\n");    
+
+    nf_register_net_hook(&init_net, &hook_src_ip);
+    nf_register_net_hook(&init_net, &hook_dst_ip);
+    nf_register_net_hook(&init_net, &hook_src_prt);
+    nf_register_net_hook(&init_net, &hook_dst_prt);
+
+    printk(KERN_INFO "[FW] module loaded\n");
     return 0;
 }
 
-static void __exit my_netfilter_exit(void){
-    printk(KERN_INFO "\n[MODULE] cleaning up netfilter module...\n");
-    
-    if (nl_sk) {
-        netlink_kernel_release(nl_sk);
-        printk(KERN_INFO "[NETLINK] socket released\n");
-    }
-    
-    nf_unregister_net_hook(&init_net, &nfho_src_ip);
-    nf_unregister_net_hook(&init_net, &nfho_dest_ip);
-    nf_unregister_net_hook(&init_net, &nfho_src_port);
-    nf_unregister_net_hook(&init_net, &nfho_dest_port);
-    
-    printk(KERN_INFO "[HOOKS] Netfilter hooks unregistered\n");
-    printk(KERN_INFO "[MODULE] Unloaded\n");
+static void __exit fw_exit(void) {
+    nf_unregister_net_hook(&init_net, &hook_src_ip);
+    nf_unregister_net_hook(&init_net, &hook_dst_ip);
+    nf_unregister_net_hook(&init_net, &hook_src_prt);
+    nf_unregister_net_hook(&init_net, &hook_dst_prt);
+
+    if (nl_sock)
+        netlink_kernel_release(nl_sock);
+
+    printk(KERN_INFO "[FW] module unloaded\n");
 }
 
-module_init(my_netfilter_init);
-module_exit(my_netfilter_exit);
+module_init(fw_init);
+module_exit(fw_exit);

@@ -1,274 +1,303 @@
+// firewall_client.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdint.h>
+#include <errno.h>
 #include <sys/socket.h>
 #include <linux/netlink.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "cjson/cJSON.h"
 
-#define NETLINK_USER 31
-#define SERVER_PORT 9999
-#define BUFFER_SIZE 8192
+#define NETLINK_USER   31
+#define SERVER_PORT    9999
+#define BUFFER_SIZE    8192
+
+/* Netlink message types */
+#define NLMSG_RULE_ADD   0x10
+#define NLMSG_RULE_DEL   0x11
+#define NLMSG_RULE_CLR   0x12
 
 typedef struct {
-    char cmd;           // A=Add, D=Delete, C=Clear 
-    char rule_type;     // S=Source IP, D=Dest IP, P=Port 
-    uint32_t ip_addr;   
-    uint16_t port;      
+    char     rule_type;   /* 'S' src IP, 'D' dst IP, 'P' port */
+    uint32_t ip_addr;     /* NBO */
+    uint16_t port;        /* NBO */
 } KernelRule;
 
 typedef struct {
-    char *type;        
-    char *mode;         // "blacklist" or "whitelist" 
-    char **values;      // Array of IPs/ports
-    int count;          // Number of values
-} IPRule;
+    char  *type;      /* "ip" | "port" */
+    char  *mode;      /* "blacklist"   */
+    char  *action;    /* "add" | "delete" | "clear" */
+    char  *target;    /* "src" | "dst" (default "src") */
+    char **values;
+    int    count;
+} Rule;
 
-/* ============= Netlink Communication ============= */
+/* ================= Netlink ================= */
 static int netlink_socket = -1;
 
-/* Initialize netlink socket once */
-static int init_netlink(void) {
-    struct sockaddr_nl addr;
-    
+static int init_netlink(void){
     if (netlink_socket >= 0)
-        return 0;  /* Already initialized */
-    
+        return 0;
+
+    struct sockaddr_nl addr;
+    memset(&addr, 0, sizeof(addr));
+
     netlink_socket = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
     if (netlink_socket < 0) {
         perror("socket");
         return -1;
     }
-    
-    memset(&addr, 0, sizeof(addr));
+
     addr.nl_family = AF_NETLINK;
-    addr.nl_pid = getpid();
-    
-    if (bind(netlink_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+    addr.nl_pid    = getpid();
+
+    if (bind(netlink_socket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         perror("bind");
         close(netlink_socket);
         netlink_socket = -1;
         return -1;
     }
-    
-    printf("[NL] Netlink socket initialized\n");
+
     return 0;
 }
 
-/* Send rule to kernel */
-static int send_rule(KernelRule *rule) {
-    struct sockaddr_nl dest_addr;
-    struct nlmsghdr *nlh;
-    struct iovec iov;
-    struct msghdr msg;
-    
+static void drain_netlink_ack(void){
+    if (netlink_socket < 0)
+        return;
+
+    char buf[NLMSG_SPACE(256)];
+    struct iovec iov = { .iov_base = buf, .iov_len = sizeof(buf) };
+    struct sockaddr_nl sa;
+    struct msghdr msg = {
+        .msg_name    = &sa,
+        .msg_namelen = sizeof(sa),
+        .msg_iov     = &iov,
+        .msg_iovlen  = 1
+    };
+
+    (void)recvmsg(netlink_socket, &msg, MSG_DONTWAIT);
+}
+
+static int send_rule(uint16_t nl_type, const KernelRule *rule)
+{
     if (init_netlink() < 0)
         return -1;
-    
-    // Prepare destination
-    memset(&dest_addr, 0, sizeof(dest_addr));
-    dest_addr.nl_family = AF_NETLINK;
-    dest_addr.nl_pid = 0;  // Kernel
-    
-    // Allocate message
-    nlh = (struct nlmsghdr *)calloc(1, NLMSG_SPACE(sizeof(KernelRule)));
-    nlh->nlmsg_len = NLMSG_LENGTH(sizeof(KernelRule));
-    nlh->nlmsg_pid = getpid();
-    nlh->nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
-    
-    memcpy(NLMSG_DATA(nlh), rule, sizeof(KernelRule));
-    
-    // Send message
-    iov.iov_base = (void *)nlh;
-    iov.iov_len = nlh->nlmsg_len;
-    
-    memset(&msg, 0, sizeof(msg));
-    msg.msg_name = (void *)&dest_addr;
-    msg.msg_namelen = sizeof(dest_addr);
-    msg.msg_iov = &iov;
-    msg.msg_iovlen = 1;
-    
-    printf("[NL] Sending: cmd=%c type=%c", rule->cmd, rule->rule_type);
-    if (rule->rule_type != 'P') {
-        struct in_addr addr = {.s_addr = rule->ip_addr};
-        printf(" ip=%s", inet_ntoa(addr));
-    } else {
-        printf(" port=%u", ntohs(rule->port));
+
+    struct sockaddr_nl dest = { .nl_family = AF_NETLINK, .nl_pid = 0 };
+
+    struct nlmsghdr *nlh = calloc(1, NLMSG_SPACE(sizeof(KernelRule)));
+    if (!nlh) {
+        perror("calloc");
+        return -1;
     }
-    printf("\n");
-    
+
+    nlh->nlmsg_len   = NLMSG_LENGTH(sizeof(KernelRule));
+    nlh->nlmsg_pid   = getpid();
+    nlh->nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+    nlh->nlmsg_type  = nl_type;
+
+    memcpy(NLMSG_DATA(nlh), rule, sizeof(*rule));
+
+    struct iovec iov = { .iov_base = nlh, .iov_len = nlh->nlmsg_len };
+    struct msghdr msg = {
+        .msg_name    = &dest,
+        .msg_namelen = sizeof(dest),
+        .msg_iov     = &iov,
+        .msg_iovlen  = 1
+    };
+
+    printf("[NL] type=0x%x rule_type=%c\n", nl_type, rule->rule_type);
+
     if (sendmsg(netlink_socket, &msg, 0) < 0) {
         perror("sendmsg");
         free(nlh);
         return -1;
     }
-    
+
     free(nlh);
+    drain_netlink_ack();
     return 0;
 }
 
-/* ============= JSON Parsing ============= */
-static IPRule* parse_json(const char *json_str) {
-    IPRule *rule = calloc(1, sizeof(IPRule));
-    cJSON *json = cJSON_Parse(json_str);
-    
-    if (!json) {
-        printf("[ERROR] Invalid JSON\n");
-        free(rule);
+/* ================= JSON ================= */
+static Rule *parse_json(const char *json_str){
+    Rule *r = calloc(1, sizeof(*r));
+    if (!r) {
+        perror("calloc");
         return NULL;
     }
-    
-    cJSON *type = cJSON_GetObjectItem(json, "type");
-    if (type && cJSON_IsString(type))
-        rule->type = strdup(type->valuestring);
-    
-    cJSON *mode = cJSON_GetObjectItem(json, "mode");
-    if (mode && cJSON_IsString(mode))
-        rule->mode = strdup(mode->valuestring);
-    
-    cJSON *values = cJSON_GetObjectItem(json, "values");
+
+    cJSON *j = cJSON_Parse(json_str);
+    if (!j) {
+        fprintf(stderr, "[ERROR] invalid json\n");
+        free(r);
+        return NULL;
+    }
+
+    cJSON *action = cJSON_GetObjectItem(j, "action");
+    r->action = strdup((action && cJSON_IsString(action)) ? action->valuestring : "add");
+
+    cJSON *target = cJSON_GetObjectItem(j, "target");
+    r->target = strdup((target && cJSON_IsString(target)) ? target->valuestring : "src");
+
+    cJSON *type = cJSON_GetObjectItem(j, "type");
+    if (!(type && cJSON_IsString(type))) {
+        fprintf(stderr, "[ERROR] missing/invalid 'type'\n");
+        cJSON_Delete(j);
+        free(r->action); free(r->target); free(r);
+        return NULL;
+    }
+    r->type = strdup(type->valuestring);
+
+    cJSON *mode = cJSON_GetObjectItem(j, "mode");
+    if (!(mode && cJSON_IsString(mode))) {
+        fprintf(stderr, "[ERROR] missing/invalid 'mode'\n");
+        cJSON_Delete(j);
+        free(r->action); free(r->target); free(r->type); free(r);
+        return NULL;
+    }
+    r->mode = strdup(mode->valuestring);
+
+    cJSON *values = cJSON_GetObjectItem(j, "values");
     if (values && cJSON_IsArray(values)) {
-        rule->count = cJSON_GetArraySize(values);
-        rule->values = calloc(rule->count, sizeof(char*));
-        
-        for (int i = 0; i < rule->count; i++) {
-            cJSON *item = cJSON_GetArrayItem(values, i);
-            if (cJSON_IsString(item))
-                rule->values[i] = strdup(item->valuestring);
+        r->count  = cJSON_GetArraySize(values);
+        r->values = calloc(r->count, sizeof(char*));
+        if (!r->values) {
+            perror("calloc");
+            cJSON_Delete(j);
+            free(r->action); free(r->target); free(r->type); free(r->mode); free(r);
+            return NULL;
         }
+        for (int i = 0; i < r->count; i++) {
+            cJSON *it = cJSON_GetArrayItem(values, i);
+            if (cJSON_IsString(it))
+                r->values[i] = strdup(it->valuestring);
+        }
+    } else {
+        r->count = 0; /* תקין ל-clear */
     }
-    
-    cJSON_Delete(json);
-    return rule;
+
+    cJSON_Delete(j);
+    return r;
 }
 
-static void free_rule(IPRule *rule) {
-    if (!rule) return;
-    
-    for (int i = 0; i < rule->count; i++)
-        free(rule->values[i]);
-    free(rule->values);
-    free(rule->type);
-    free(rule->mode);
-    free(rule);
+static void free_Rule(Rule *r){
+    if (!r) return;
+    for (int i=0; i<r->count; i++) free(r->values[i]);
+    free(r->values);
+    free(r->type);
+    free(r->mode);
+    free(r->action);
+    free(r->target);
+    free(r);
 }
 
-/* ============= Rule Processing ============= */
+/* ================= Process rule ================= */
+static void process_rule(const char *json_data){
+    Rule *r = parse_json(json_data);
+    if (!r) return;
 
-static void process_rule(const char *json_data) {
-    IPRule *rule;
-    KernelRule krule;
-    
-    printf("\n[CLIENT] Processing new rule\n");
-    
-    rule = parse_json(json_data);
-    if (!rule) {
-        printf("[ERROR] Failed to parse rule\n");
+    if (strcmp(r->mode, "blacklist") != 0) {
+        free_Rule(r);
         return;
     }
-    
-    printf("Type: %s\n", rule->type);
-    printf("Mode: %s\n", rule->mode); 
-    printf("Values: %d entries\n", rule->count);
-    
-    // Only process blacklist rules
-    if (strcmp(rule->mode, "blacklist") != 0) {
-        printf("[INFO] Only blacklist mode supported\n");
-        free_rule(rule);
+
+    uint16_t nl_type = NLMSG_RULE_ADD;
+    if (strcmp(r->action, "delete") == 0) nl_type = NLMSG_RULE_DEL;
+    else if (strcmp(r->action, "clear") == 0) nl_type = NLMSG_RULE_CLR;
+
+    char target_ch = (r->target && strcmp(r->target, "dst") == 0) ? 'D' : 'S';
+
+    if (nl_type == NLMSG_RULE_CLR) {
+        KernelRule kr = { .rule_type = (strcmp(r->type, "port")==0) ? 'P' : target_ch };
+        (void)send_rule(nl_type, &kr);
+        free_Rule(r);
         return;
     }
-    
-    // Send each value to kernel
-    krule.cmd = 'A';  
-    krule.rule_type = 'S';  // Source IP by default
-    
-    for (int i = 0; i < rule->count; i++) {
-        printf("  [%d] %s\n", i+1, rule->values[i]);
-        
-        if (strcmp(rule->type, "ip") == 0) {
-            struct in_addr addr;
-            inet_aton(rule->values[i], &addr);
-            krule.ip_addr = addr.s_addr;
-            krule.port = 0;
-        } else if (strcmp(rule->type, "port") == 0) {
-            krule.rule_type = 'P';
-            krule.port = htons(atoi(rule->values[i]));
-            krule.ip_addr = 0;
-        }
-        
-        send_rule(&krule);
+
+    if (r->count <= 0) {
+        fprintf(stderr, "[WARN] no values provided\n");
+        free_Rule(r);
+        return;
     }
-    
-    free_rule(rule);
-    printf("[SUCCESS] Rules sent to kernel\n");
+
+    for (int i=0; i<r->count; i++) {
+        KernelRule kr;
+        memset(&kr, 0, sizeof(kr));
+
+        if (strcmp(r->type, "ip") == 0) {
+            struct in_addr a;
+            if (inet_aton(r->values[i], &a) == 0) {
+                fprintf(stderr, "[WARN] bad ip: %s\n", r->values[i]);
+                continue;
+            }
+            kr.rule_type = target_ch;
+            kr.ip_addr   = a.s_addr;
+        }
+        else if (strcmp(r->type, "port") == 0) {
+            char *end = NULL;
+            long p = strtol(r->values[i], &end, 10);
+            if (!end || *end != '\0' || p < 1 || p > 65535) {
+                fprintf(stderr, "[WARN] bad port: %s\n", r->values[i]);
+                continue;
+            }
+            kr.rule_type = 'P';
+            kr.port      = htons((uint16_t)p);
+        } else {
+            fprintf(stderr, "[WARN] unknown type: %s\n", r->type);
+            continue;
+        }
+
+        (void)send_rule(nl_type, &kr);
+    }
+
+    free_Rule(r);
 }
 
-/* ============= Server Mode ============= */
-static void run_server(void) {
-    int server_fd, client_fd;
-    struct sockaddr_in addr;
-    char buffer[BUFFER_SIZE];
-    
-    printf("[SERVER] Starting on port %d\n", SERVER_PORT);
-    
-    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+/* ================= Server ================= */
+static void run_server(void){
+    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
         perror("socket");
         exit(1);
     }
-    
+
     int opt = 1;
-    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    
+    (void)setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+    struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
+    addr.sin_family      = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(SERVER_PORT);
-    
-    if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        perror("bind");
-        exit(1);
-    }
-    
-    if (listen(server_fd, 5) < 0) {
-        perror("listen");
-        exit(1);
-    }
-    
-    printf("[SERVER] Listening for connections from node server...\n");
-    
+    addr.sin_port        = htons(SERVER_PORT);
+
+    if (bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) { perror("bind"); exit(1); }
+    if (listen(server_fd, 5) < 0) { perror("listen"); exit(1); }
+
     while (1) {
-        socklen_t addrlen = sizeof(addr);
-        client_fd = accept(server_fd, (struct sockaddr *)&addr, &addrlen);
-        
-        if (client_fd < 0) {
-            perror("accept");
-            continue;
+        socklen_t alen = sizeof(addr);
+        int cfd = accept(server_fd, (struct sockaddr*)&addr, &alen);
+        if (cfd < 0) { perror("accept"); continue; }
+
+        char buf[BUFFER_SIZE];
+        memset(buf, 0, sizeof(buf));
+        int n = (int)read(cfd, buf, sizeof(buf)-1);
+        if (n > 0) {
+            char *json = strstr(buf, "{");
+            if (json) process_rule(json);
         }
-        
-        printf("[SERVER] Client connected\n");
-        
-        memset(buffer, 0, sizeof(buffer));
-        int bytes = read(client_fd, buffer, sizeof(buffer) - 1);
-        
-        if (bytes > 0) {
-            char *json = strstr(buffer, "{");
-            if (json) {
-                process_rule(json);
-            }
-        }
-        
-        if (write(client_fd, "OK\n", 3) < 0) {
+
+        if (write(cfd, "OK\n", 3) < 0) {
             perror("write");
         }
-        close(client_fd);
+        close(cfd);
     }
 }
 
-/* ============= Main ============= */
-int main() {
+int main(void){
     run_server();
     return 0;
 }
