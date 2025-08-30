@@ -6,13 +6,8 @@ import { Mode } from "../types/common.js";
 
 
 export const isModeValid = (req: Request, res: Response, next: NextFunction) => {
-    console.log('=== DEBUG INFO ===');
     console.log('Request method:', req.method);
-    console.log('Request headers:', JSON.stringify(req.headers, null, 2));
     console.log('Request body:', JSON.stringify(req.body));
-    console.log('Request body type:', typeof req.body);
-    console.log('Request body keys:', Object.keys(req.body || {}));
-    console.log('==================');
     
     const { mode } = req.body || {};
 

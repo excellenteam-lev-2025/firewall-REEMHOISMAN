@@ -21,10 +21,16 @@ services:
       context: ./backend
     env_file:
       - ./backend/.env.dev
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      VM_IP: host.docker.internal
+      VM_PORT: "9999"
+
     depends_on:
       db:
         condition: service_healthy
-    command: sh -c "(npm run start:prod || npm run start || node dist/main.js || node dist/index.js)"
+    command: ["npm","run","start"]
     ports:
       - "4000:4000"
     restart: unless-stopped

@@ -1,32 +1,21 @@
-import * as repo from '../repositories/repositoryRules.js';
-import Database from '../config/Database.js';
+import * as repo from '../repositories/repositoryRules';
+import Database from '../config/Database';
 import {NextFunction, Request, Response} from "express";
-import {Data} from "../types/interfaces/RequestBody.js";
-import {HttpError} from "../utils/errors.js";
-import { RuleType } from "../types/common.js";
-import net  from 'net';
+import {Data} from "../types/interfaces/RequestBody";
+import {HttpError} from "../utils/errors";
+import { RuleType } from "../types/common";
+import PolicyDispatcher from '../config/PolicyDispatcher';
 
-// function sendRuleToC(rule) {
-//     const client = new net.Socket();
-    
-//     client.connect(9999, '172.17.0.1', () => {
-//         const json = JSON.stringify(rule);
-//         client.write(json);
-//     });
-    
-//     client.on('data', (data) => {
-//         console.log('C handler response:', data.toString());
-//         client.destroy();
-//     });
-// }
+const dispatcher = PolicyDispatcher.getInstance();
 
 export const addRules = async (req:Request, res:Response, next:NextFunction) => {
     try {
-       // sendRuleToC(req.body);
         const db = Database.getInstance().getDb();
         await db.transaction(async (trx) => {
             await repo.addRules(trx, req.body);
         });
+        await dispatcher.sendRule(req.body, 'add');
+        console.info('[Controller] Rules added to firewall');
         res.status(201).json({ ...req.body, status: 'success' });
 
     } catch (err) {
@@ -44,6 +33,8 @@ export const deleteRule = async (req: Request, res: Response, next: NextFunction
                 throw new HttpError(404, 'cannot find one of the rules');
             }
         });
+        dispatcher.sendRule(req.body, "delete");
+        console.log('[Controller] delete sent to firewall');
         res.status(200).json({ ...req.body, status: 'success' });
     } catch (err) {
         next(err);
@@ -72,7 +63,6 @@ export const getAllRules = async (req: Request, res: Response, next: NextFunctio
             }
         }
 
-        // If type parameter is specified, return only that type
         if (typeParam === 'ips') {
             res.status(200).json({ ips: data.ips });
         } else if (typeParam === 'urls') {
@@ -80,7 +70,6 @@ export const getAllRules = async (req: Request, res: Response, next: NextFunctio
         } else if (typeParam === 'ports') {
             res.status(200).json({ ports: data.ports });
         } else {
-            // Default behavior: return all rules
             res.status(200).json(data);
         }
     } catch (err) {
@@ -106,6 +95,8 @@ export const toggleRuleStatus = async (req: Request, res: Response, next: NextFu
             updated.push(...rows);
         }
         });
+        await dispatcher.sendRule({ rules: updated }, "update");
+        console.log('[Controller] Toggle sent to firewall');
         console.info(`Rules updated: ${JSON.stringify(updated)}`);
         return res.status(200).json({ updated });
 
