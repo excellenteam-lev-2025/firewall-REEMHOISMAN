@@ -175,8 +175,16 @@ static Rule *parse_json(const char *json_str){
             cJSON *it = cJSON_GetArrayItem(values, i);
             if (cJSON_IsString(it))
                 r->values[i] = strdup(it->valuestring);
+            else if (cJSON_IsNumber(it)) {
+                /* המרה לבטוחה למחרוזת */
+                char tmp[32];
+                /* פורטים עד 65535, אבל גם אם יגיע מספר גדול – לא יקרוס */
+                snprintf(tmp, sizeof(tmp), "%.0f", it->valuedouble);
+                r->values[i] = strdup(tmp);
+            }
         }
-    } else {
+    }
+    else {
         r->count = 0; /* תקין ל-clear */
     }
 
@@ -240,10 +248,6 @@ static void process_rule(const char *json_data){
         else if (strcmp(r->type, "port") == 0) {
             char *end = NULL;
             long p = strtol(r->values[i], &end, 10);
-            if (!end || *end != '\0' || p < 1 || p > 65535) {
-                fprintf(stderr, "[WARN] bad port: %s\n", r->values[i]);
-                continue;
-            }
             kr.rule_type = 'P';
             kr.port      = htons((uint16_t)p);
         } else {
@@ -274,8 +278,12 @@ static void run_server(void){
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port        = htons(SERVER_PORT);
 
-    if (bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) { perror("bind"); exit(1); }
-    if (listen(server_fd, 5) < 0) { perror("listen"); exit(1); }
+    if (bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) { 
+        perror("bind"); exit(1); 
+    }
+    if (listen(server_fd, 5) < 0) { 
+        perror("listen"); exit(1); 
+    }
 
     while (1) {
         socklen_t alen = sizeof(addr);
