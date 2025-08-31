@@ -17,29 +17,30 @@ MODULE_DESCRIPTION("netfilter firewall controlled via netlink");
 #define MAX_RULES      2000
 #define NETLINK_USER   31
 
-/* netlink message types */
 #define NLMSG_RULE_ADD 0x10
 #define NLMSG_RULE_DEL 0x11
 #define NLMSG_RULE_CLR 0x12
 
-/* payload from userspace */
 typedef struct {
     char     rule_type;   /* 'S' = src ip, 'D' = dst ip, 'P' = port */
     uint32_t ip_addr;     /* network byte order */
     uint16_t port;        /* network byte order */
 } kernel_rule_t;
 
-/* global tables */
-static uint32_t src_ips[MAX_RULES];  int src_ip_count;
-static uint32_t dst_ips[MAX_RULES];  int dst_ip_count;
-static uint16_t src_ports[MAX_RULES];int src_port_count; /* host order */
-static uint16_t dst_ports[MAX_RULES];int dst_port_count; /* host order */
+static uint32_t src_ips[MAX_RULES];
+int src_ip_count;
+
+static uint32_t dst_ips[MAX_RULES];
+int dst_ip_count;
+
+static uint16_t src_ports[MAX_RULES];
+int src_port_count; 
+
+static uint16_t dst_ports[MAX_RULES];
+int dst_port_count; 
+
 
 static struct sock *nl_sock;
-
-/* ------------------------------------------------------------
- * helpers: add / delete with logging
- * ------------------------------------------------------------ */
 
 static void add_src_ip(uint32_t ip_nbo) {
     int i;
@@ -132,10 +133,6 @@ static void del_port(uint16_t port_host) {
            port_host, src_port_count, dst_port_count);
 }
 
-/* ------------------------------------------------------------
- * packet hooks
- * ------------------------------------------------------------ */
-
 static unsigned int hook_ip(void *priv, struct sk_buff *skb,
                             const struct nf_hook_state *state) {
     const struct iphdr *iph = ip_hdr(skb);
@@ -203,9 +200,6 @@ static unsigned int hook_port(void *priv, struct sk_buff *skb,
     return NF_ACCEPT;
 }
 
-/* ------------------------------------------------------------
- * netlink receive
- * ------------------------------------------------------------ */
 
 static void nl_recv(struct sk_buff *skb) {
     struct nlmsghdr *nlh = nlmsg_hdr(skb);
@@ -218,49 +212,65 @@ static void nl_recv(struct sk_buff *skb) {
 
     switch (nlh->nlmsg_type) {
     case NLMSG_RULE_ADD:
-        if (rule.rule_type == 'S')
-            add_src_ip(rule.ip_addr);
-        else if (rule.rule_type == 'D')
-            add_dst_ip(rule.ip_addr);
-        else if (rule.rule_type == 'P')
+        if (rule.rule_type == 'P') {
             add_port(ntohs(rule.port));
+        } else {
+            add_src_ip(rule.ip_addr);
+            add_dst_ip(rule.ip_addr);
+        }
         break;
 
     case NLMSG_RULE_DEL:
-        if (rule.rule_type == 'S')
-            del_src_ip(rule.ip_addr);
-        else if (rule.rule_type == 'D')
-            del_dst_ip(rule.ip_addr);
-        else if (rule.rule_type == 'P')
+        if (rule.rule_type == 'P') {
             del_port(ntohs(rule.port));
+        } else {
+            del_src_ip(rule.ip_addr);
+            del_dst_ip(rule.ip_addr);
+        }
         break;
 
     case NLMSG_RULE_CLR:
-        if (rule.rule_type == 'S') {
-            src_ip_count = 0;
-            printk(KERN_INFO "[FW] clear src ip table\n");
-        }
-        else if (rule.rule_type == 'D') {
-            dst_ip_count = 0;
-            printk(KERN_INFO "[FW] clear dst ip table\n");
-        }
-        else if (rule.rule_type == 'P') {
+        if (rule.rule_type == 'P') {
             src_port_count = 0;
             dst_port_count = 0;
             printk(KERN_INFO "[FW] clear port tables\n");
+        } else {
+            src_ip_count = 0;
+            dst_ip_count = 0;
+            printk(KERN_INFO "[FW] clear src/dst ip tables\n");
         }
         break;
     }
 }
 
-/* ------------------------------------------------------------
- * module init/exit
- * ------------------------------------------------------------ */
 
-static struct nf_hook_ops hook_src_ip  = { .hook=hook_ip,   .pf=PF_INET, .hooknum=NF_INET_PRE_ROUTING,  .priority=NF_IP_PRI_FIRST };
-static struct nf_hook_ops hook_dst_ip  = { .hook=hook_ip,   .pf=PF_INET, .hooknum=NF_INET_POST_ROUTING, .priority=NF_IP_PRI_FIRST };
-static struct nf_hook_ops hook_src_prt = { .hook=hook_port, .pf=PF_INET, .hooknum=NF_INET_PRE_ROUTING,  .priority=NF_IP_PRI_FIRST };
-static struct nf_hook_ops hook_dst_prt = { .hook=hook_port, .pf=PF_INET, .hooknum=NF_INET_POST_ROUTING, .priority=NF_IP_PRI_FIRST };
+static struct nf_hook_ops hook_src_ip  = { 
+    .hook=  hook_ip,   
+    .pf=    PF_INET, 
+    .hooknum=   NF_INET_PRE_ROUTING,
+    .priority=  NF_IP_PRI_FIRST
+};
+
+static struct nf_hook_ops hook_dst_ip  = {
+    .hook=  hook_ip,   
+    .pf=    PF_INET,
+    .hooknum=   NF_INET_POST_ROUTING,
+    .priority=  NF_IP_PRI_FIRST
+};
+
+static struct nf_hook_ops hook_src_prt = { 
+    .hook=hook_port, 
+    .pf=    PF_INET, 
+    .hooknum=   NF_INET_PRE_ROUTING,  
+    .priority=  NF_IP_PRI_FIRST
+};
+
+static struct nf_hook_ops hook_dst_prt = { 
+    .hook=  hook_port, 
+    .pf=   PF_INET,
+    .hooknum=   NF_INET_POST_ROUTING,
+    .priority=  NF_IP_PRI_FIRST 
+};
 
 static struct netlink_kernel_cfg cfg = { .input = nl_recv };
 
