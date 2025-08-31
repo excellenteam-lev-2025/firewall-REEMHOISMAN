@@ -82,9 +82,7 @@ static void drain_netlink_ack(void){
 
 static int send_rule(uint16_t nl_type, const KernelRule *rule)
 {
-    if (init_netlink() < 0)
-        return -1;
-
+    
     struct sockaddr_nl dest = { .nl_family = AF_NETLINK, .nl_pid = 0 };
 
     struct nlmsghdr *nlh = calloc(1, NLMSG_SPACE(sizeof(KernelRule)));
@@ -306,6 +304,9 @@ static void run_server(void){
 }
 
 int main(void){
+    if (init_netlink() < 0)
+        return -1;
+
     run_server();
     return 0;
 }
