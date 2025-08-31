@@ -15,7 +15,6 @@
 #define SERVER_PORT    9999
 #define BUFFER_SIZE    8192
 
-/* Netlink message types */
 #define NLMSG_RULE_ADD   0x10
 #define NLMSG_RULE_DEL   0x11
 #define NLMSG_RULE_CLR   0x12
@@ -109,8 +108,6 @@ static int send_rule(uint16_t nl_type, const KernelRule *rule)
         .msg_iovlen  = 1
     };
 
-    printf("[NL] type=0x%x rule_type=%c\n", nl_type, rule->rule_type);
-
     if (sendmsg(netlink_socket, &msg, 0) < 0) {
         perror("sendmsg");
         free(nlh);
@@ -168,7 +165,11 @@ static Rule *parse_json(const char *json_str){
         if (!r->values) {
             perror("calloc");
             cJSON_Delete(j);
-            free(r->action); free(r->target); free(r->type); free(r->mode); free(r);
+            free(r->action); 
+            free(r->target);
+            free(r->type); 
+            free(r->mode);
+            free(r);
             return NULL;
         }
         for (int i = 0; i < r->count; i++) {
@@ -176,16 +177,14 @@ static Rule *parse_json(const char *json_str){
             if (cJSON_IsString(it))
                 r->values[i] = strdup(it->valuestring);
             else if (cJSON_IsNumber(it)) {
-                /* המרה לבטוחה למחרוזת */
                 char tmp[32];
-                /* פורטים עד 65535, אבל גם אם יגיע מספר גדול – לא יקרוס */
                 snprintf(tmp, sizeof(tmp), "%.0f", it->valuedouble);
                 r->values[i] = strdup(tmp);
             }
         }
     }
     else {
-        r->count = 0; /* תקין ל-clear */
+        r->count = 0; 
     }
 
     cJSON_Delete(j);
@@ -278,11 +277,11 @@ static void run_server(void){
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port        = htons(SERVER_PORT);
 
-    if (bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) { 
-        perror("bind"); exit(1); 
+    if (bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        perror("bind"); exit(1);
     }
-    if (listen(server_fd, 5) < 0) { 
-        perror("listen"); exit(1); 
+    if (listen(server_fd, 5) < 0) {
+        perror("listen"); exit(1);
     }
 
     while (1) {
@@ -295,11 +294,12 @@ static void run_server(void){
         int n = (int)read(cfd, buf, sizeof(buf)-1);
         if (n > 0) {
             char *json = strstr(buf, "{");
-            if (json) process_rule(json);
-        }
+            if (json)
+                process_rule(json);
 
-        if (write(cfd, "OK\n", 3) < 0) {
-            perror("write");
+            if (write(cfd, "OK\n", 3) < 0) {
+                perror("write");
+            }
         }
         close(cfd);
     }
