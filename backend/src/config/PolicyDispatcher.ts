@@ -1,4 +1,3 @@
-// PolicyDispatcher.ts
 import net from 'net';
 import { getAllRules } from '../repositories/repositoryRules';
 
@@ -20,7 +19,7 @@ class PolicyDispatcher {
     private isConnected: boolean = false;
 
     private constructor() {
-        this.host = process.env.VM_IP?.trim() || '127.0.0.1';
+        this.host = process.env.VM_IP?.trim() || '10.0.2.15';
         this.port = parseInt(process.env.VM_PORT || '9999', 10);
         this.timeout = parseInt(process.env.VM_TIMEOUT || '5000', 10);
     }
@@ -32,53 +31,32 @@ class PolicyDispatcher {
         return PolicyDispatcher.instance;
     }
 
-    public async testConnection(): Promise<void> {
-        const maxAttempts = 3;
-        const interval = 2000;
-
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-            try {
-                await this.sendRaw({ action: 'ping' });
-                console.info(`[PolicyDispatcher] Connection to ${this.host}:${this.port} verified`);
-                this.isConnected = true;
-                return;
-            } catch (err) {
-                if (attempt === maxAttempts) {
-                    console.error('[PolicyDispatcher] Failed to connect to VM after retries:', (err as Error).message);
-                    throw err;
-                }
-                console.warn(`[PolicyDispatcher] Connection test failed (${attempt}/${maxAttempts}). Retrying in ${interval}ms...`);
-                await new Promise(res => setTimeout(res, interval));
-            }
-        }
-    }
-
-    private async sendRaw(data: FirewallRule): Promise<any> {
+    private async request(payload: any, expectJson: boolean = true): Promise<any> {
         return new Promise((resolve, reject) => {
             const socket = net.createConnection({ host: this.host, port: this.port });
             let buffer = '';
             let done = false;
 
             const timer = setTimeout(() => {
-            if (!done) {
-                done = true;
-                try { socket.destroy(); } catch {}
-                reject(new Error(`Connection timeout to ${this.host}:${this.port}`));
-            }
+                if (!done) {
+                    done = true;
+                    try { socket.destroy(); } catch {}
+                    reject(new Error(`Connection timeout to ${this.host}:${this.port}`));
+                }
             }, this.timeout);
 
             socket.on('connect', () => {
-            const json = JSON.stringify(data);
-                console.log(`[PolicyDispatcher] Sending: ${json}`);
-                socket.write(json);
-                socket.end();                 // << חשוב: מסמן שסיימנו לשלוח
+                const data = JSON.stringify(payload);
+                console.log(`[PolicyDispatcher] Sending: ${data}`);
+                socket.write(data);
+                socket.end();
             });
 
             socket.on('data', (chunk) => {
-                buffer += chunk.toString('utf8'); // פשוט צוברים
+                buffer += chunk.toString('utf8');
             });
 
-            socket.on('end', () => {            // נחכה לסיום הזרם מה-C
+            socket.on('end', () => {
                 if (done) return;
                 done = true;
                 clearTimeout(timer);
@@ -101,78 +79,59 @@ class PolicyDispatcher {
 
     public async sendRule(data: any, action: string): Promise<any> {
         const payload: FirewallRule = { ...data, action };
+        console.log(`[PolicyDispatcher] Sending: ${JSON.stringify(payload)}`);
 
         switch (action) {
             case 'add':
             case 'delete':
                 if (data.type && data.mode && data.values) {
-                    return this.sendRaw({
+                    return this.request({
                         action,
                         type: data.type,
                         mode: data.mode,
                         values: data.values
-                    });
-                }
-                break;
-
-            case 'update':
-                if (data.rules || data.updated) {
-                    const rules = data.updated || data.rules;
-                    const promises = [];
-                    
-                    for (const rule of rules) {
-                        // Only process active rules as 'add', inactive as 'delete'
-                        const ruleAction = rule.active ? 'add' : 'delete';
-                        promises.push(this.sendRaw({
-                            action: ruleAction,
-                            type: rule.type,
-                            mode: rule.mode || 'blacklist',
-                            values: [rule.value]
-                        }));
-                    }
-                    
-                    return Promise.all(promises);
+                    }, true);
                 }
                 break;
 
             case 'clear':
-                return this.sendRaw({
+                return this.request({
                     action: 'clear',
                     cmd: 'C',
                     rule_type: 'A'
-                });
+                }, true);
 
             default:
-                return this.sendRaw(payload);
+                return this.request(payload, true);
         }
 
-        return this.sendRaw(payload);
+        return this.request(payload, true);
     }
 
     public async syncRules(): Promise<void> {
-    const [ips, ports] = await Promise.all([
-        getAllRules("ips").then(rs =>
-        rs.filter(r => r.mode === "blacklist" && r.active).map(r => r.value)
-        ),
-        getAllRules("ports").then(rs =>
-        rs.filter(r => r.mode === "blacklist" && r.active).map(r => r.value)
-        ),
-    ]);
+        const [ips, ports] = await Promise.all([
+            getAllRules("ips").then(rs =>
+                rs.filter(r => r.mode === "blacklist" && r.active).map(r => r.value)
+            ),
+            getAllRules("ports").then(rs =>
+                rs.filter(r => r.mode === "blacklist" && r.active).map(r => r.value)
+            ),
+        ]);
 
-    const jobs: Promise<unknown>[] = [];
+        const jobs: Promise<unknown>[] = [];
 
-    if (ips.length > 0) {
-        const ipPayload = { type: "ip", mode: "blacklist", values: [...ips] };   // clone!
-        jobs.push(this.sendRule(ipPayload, "add"));
-    }
+        if (ips.length > 0) {
+            const ipPayload = { type: "ip", mode: "blacklist", values: [...ips] };
+            jobs.push(this.sendRule(ipPayload, "add"));
+        }
 
-    if (ports.length > 0) {
-        const portPayload = { type: "port", mode: "blacklist", values: [...ports] }; // clone!
-        jobs.push(this.sendRule(portPayload, "add"));
-    }
+        if (ports.length > 0) {
+            const portPayload = { type: "port", mode: "blacklist", values: [...ports] };
+            jobs.push(this.sendRule(portPayload, "add"));
+        }
 
-    await Promise.all(jobs);
-    console.info("[PolicyDispatcher] syncRules completed");
+        await Promise.all(jobs);
+        console.info("[PolicyDispatcher] syncRules completed");
     }
  
 

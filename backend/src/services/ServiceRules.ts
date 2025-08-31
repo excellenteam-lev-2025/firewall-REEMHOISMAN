@@ -79,49 +79,53 @@ export const getAllRules = async (req: Request, res: Response, next: NextFunctio
 
 
 export const toggleRuleStatus = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const db = Database.getInstance().getDb();
-    const updated: any[] = [];
+    try {
+        const body = req.body as {
+            ips?: { ids: number[]; mode: 'blacklist'|'whitelist'; active: boolean };
+            ports?: { ids: number[]; mode: 'blacklist'|'whitelist'; active: boolean };
+        };
 
-    // עוזר קטן לקריאת values – אם אובייקטים, נחפש value/ip/port, אחרת נשאיר כמו שזה
-    const valuesOf = (arr: any[]): (string | number)[] => {
-      if (!Array.isArray(arr) || arr.length === 0) return [];
-      if (typeof arr[0] === 'object' && arr[0] !== null) {
-        return arr
-          .map(v => (v.value ?? v.ip ?? v.port))
-          .filter(v => v !== undefined && v !== null);
-      }
-      return arr as (string | number)[];
-    };
+        const sections = (['ips', 'ports'] as const)
+            .map(k => ({ key: k, section: body[k] }))
+            .filter(x => x.section && Array.isArray(x.section!.ids) && x.section!.ids.length > 0) as
+            Array<{ key: 'ips'|'ports'; section: { ids: number[]; mode: 'blacklist'|'whitelist'; active: boolean } }>;
 
-    // עדכון DB – פשוט מריצים את הטוגל לכל סקשן שיש
-    await db.transaction(async (trx) => {
-      for (const key of ['ips', 'ports'] as const) {
-        const section = (req.body as any)[key];
-        if (!section) continue;
-        const rows = await repo.toggleRules(trx, section);
-        updated.push(...rows);
-      }
-    });
+        if (sections.length === 0) return res.status(200).json({ updated: [], status: 'success' });
 
-    for (const key of ['ips', 'ports'] as const) {
-      const section = (req.body as any)[key];
-      if (!section) continue;
+        const db = Database.getInstance().getDb();
+        const updated: any[] = [];
+        type BucketKey = `${'ip'|'port'}|${'blacklist'|'whitelist'}|${'add'|'delete'}`;
+        const buckets = new Map<BucketKey, Set<string|number>>();
 
-      const type = key === 'ips' ? 'ip' : 'port';
-      const mode = section.mode === 'whitelist' ? 'whitelist' : 'blacklist';
-      const action = mode === 'blacklist' ? 'delete' : 'add';
-      const values = valuesOf(section.values);
+        const ensure = (t: 'ip'|'port', m: 'blacklist'|'whitelist', a: 'add'|'delete') => {
+            const k = `${t}|${m}|${a}` as BucketKey;
+            if (!buckets.has(k)) buckets.set(k, new Set());
+            return buckets.get(k)!;
+        };
 
-      if (values.length === 0) continue;
+        await db.transaction(async (trx) => {
+            for (const { key, section } of sections) {
+                const rows = await repo.toggleRules(trx, section as Data);
+                if (rows?.length) {
+                    updated.push(...rows);
+                    const type = key === 'ips' ? 'ip' : 'port';
+                    const action = section.active ? 'add' : 'delete';
+                    const bucket = ensure(type, section.mode, action);
+                    for (const r of rows) if (r?.value !== undefined && r?.active === section.active) bucket.add(r.value);
+                }
+            }
+        });
 
-      await dispatcher.sendRule({ type, mode, values }, action);
+        for (const [k, set] of buckets.entries()) {
+            const [type, mode, action] = k.split('|') as ['ip'|'port','blacklist'|'whitelist','add'|'delete'];
+            const values = Array.from(set);
+            if (values.length) await dispatcher.sendRule({ type, mode, values }, action);
+        }
+
+        return res.status(200).json({ updated, status: 'success' });
+    } catch (err) {
+        return next(err);
     }
-
-    return res.status(200).json({ updated, status: 'success' });
-  } catch (err) {
-    return next(err);
-  }
 };
 
 
