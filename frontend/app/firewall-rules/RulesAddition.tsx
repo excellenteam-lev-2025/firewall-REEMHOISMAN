@@ -23,15 +23,11 @@ const RulesAddition: React.FC<RulesAdditionProps> = ({ onRuleAdded }) => {
         e.preventDefault();
         if (!value || isSubmitting) return;
         
-        console.log('=== FORM SUBMIT STARTED ===');
         setIsSubmitting(true);
         
-        console.log('Calling addRule with:', { type, value, mode });
         const result = await addRule(type, value, mode);
-        console.log('addRule result:', result);
-        
+
         if (result.success) {
-            console.log('SUCCESS: Rule added');
             setValue("");
             showToast('Rule added successfully', 'success');
             if (onRuleAdded) {
@@ -42,7 +38,6 @@ const RulesAddition: React.FC<RulesAdditionProps> = ({ onRuleAdded }) => {
             showToast(result.error || 'Failed to add rule', 'error');
         }
         setIsSubmitting(false);
-        console.log('=== FORM SUBMIT ENDED ===');
     };
 
     return (
@@ -75,7 +70,6 @@ const RulesAddition: React.FC<RulesAdditionProps> = ({ onRuleAdded }) => {
                         className="w-full p-3 border rounded-lg"
                     >
                         <option value="blacklist">Blacklist (Block)</option>
-                        <option value="whitelist">Whitelist (Allow)</option>
                     </select>
                 </div>
             </div>
