@@ -7,6 +7,7 @@ import routerUrl from "./routes/routerUrl.js";
 import routerPort from "./routes/routerPort.js";
 import routerRules from "./routes/routerRules.js";
 import { ENV } from "./config/env.js";
+import PolicyDispatcher from './config/PolicyDispatcher.js';
 import './config/Logger.js';
 
 const app = express();
@@ -30,6 +31,6 @@ app.use((err: any, req: any, res: any, next: any) => {
 
 export default app;
 
-connectToDb().then(() => {
-    app.listen(ENV.PORT, () => console.info(`Server is running on port ${ENV.PORT}`));
+connectToDb().then(()=> PolicyDispatcher.getInstance().syncRules()).then(() => {
+    app.listen(ENV.PORT, '0.0.0.0', () => console.info(`Server is running on port ${ENV.PORT}`));
 });

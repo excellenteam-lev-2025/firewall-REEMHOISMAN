@@ -1,9 +1,12 @@
-import * as repo from '../repositories/repositoryRules.js';
-import Database from '../config/Database.js';
+import * as repo from '../repositories/repositoryRules';
+import Database from '../config/Database';
 import {NextFunction, Request, Response} from "express";
-import {Data} from "../types/interfaces/RequestBody.js";
-import {HttpError} from "../utils/errors.js";
-import { RuleType } from "../types/common.js";
+import {Data} from "../types/interfaces/RequestBody";
+import {HttpError} from "../utils/errors";
+import { RuleType } from "../types/common";
+import PolicyDispatcher from '../config/PolicyDispatcher';
+
+const dispatcher = PolicyDispatcher.getInstance();
 
 export const addRules = async (req:Request, res:Response, next:NextFunction) => {
     try {
@@ -11,6 +14,8 @@ export const addRules = async (req:Request, res:Response, next:NextFunction) => 
         await db.transaction(async (trx) => {
             await repo.addRules(trx, req.body);
         });
+        await dispatcher.sendRule(req.body, 'add');
+        console.info('[Controller] Rules added to firewall');
         res.status(201).json({ ...req.body, status: 'success' });
 
     } catch (err) {
@@ -28,6 +33,8 @@ export const deleteRule = async (req: Request, res: Response, next: NextFunction
                 throw new HttpError(404, 'cannot find one of the rules');
             }
         });
+        dispatcher.sendRule(req.body, "delete");
+        console.log('[Controller] delete sent to firewall');
         res.status(200).json({ ...req.body, status: 'success' });
     } catch (err) {
         next(err);
@@ -36,7 +43,8 @@ export const deleteRule = async (req: Request, res: Response, next: NextFunction
 
 export const getAllRules = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const rows = await repo.getAllRules();
+        const typeParam = req.query.type as string;
+        const rows = await repo.getAllRules(typeParam);
 
         const data = {
             ips: { blacklist: [], whitelist: [] },
@@ -55,8 +63,15 @@ export const getAllRules = async (req: Request, res: Response, next: NextFunctio
             }
         }
 
-
-        res.status(200).json(data);
+        if (typeParam === 'ips') {
+            res.status(200).json({ ips: data.ips });
+        } else if (typeParam === 'urls') {
+            res.status(200).json({ urls: data.urls });
+        } else if (typeParam === 'ports') {
+            res.status(200).json({ ports: data.ports });
+        } else {
+            res.status(200).json(data);
+        }
     } catch (err) {
         next(err);
     }
@@ -65,24 +80,49 @@ export const getAllRules = async (req: Request, res: Response, next: NextFunctio
 
 export const toggleRuleStatus = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const updated:any = []
+        const body = req.body as {
+            ips?: { ids: number[]; mode: 'blacklist'|'whitelist'; active: boolean };
+            ports?: { ids: number[]; mode: 'blacklist'|'whitelist'; active: boolean };
+        };
+
+        const sections = (['ips', 'ports'] as const)
+            .map(k => ({ key: k, section: body[k] }))
+            .filter(x => x.section && Array.isArray(x.section!.ids) && x.section!.ids.length > 0) as
+            Array<{ key: 'ips'|'ports'; section: { ids: number[]; mode: 'blacklist'|'whitelist'; active: boolean } }>;
+
+        if (sections.length === 0) return res.status(200).json({ updated: [], status: 'success' });
+
         const db = Database.getInstance().getDb();
+        const updated: any[] = [];
+        type BucketKey = `${'ip'|'port'}|${'blacklist'|'whitelist'}|${'add'|'delete'}`;
+        const buckets = new Map<BucketKey, Set<string|number>>();
+
+        const ensure = (t: 'ip'|'port', m: 'blacklist'|'whitelist', a: 'add'|'delete') => {
+            const k = `${t}|${m}|${a}` as BucketKey;
+            if (!buckets.has(k)) buckets.set(k, new Set());
+            return buckets.get(k)!;
+        };
+
         await db.transaction(async (trx) => {
-
-        for (const payload of Object.values(req.body) as Partial<Data>[]) {
-
-            if (!payload || Object.keys(payload).length === 0) continue;
-
-            const rows = await repo.toggleRules(trx, payload as Data);
-            if (rows.length !== payload.ids?.length) {
-                throw new HttpError(404, "One or more rules not found");
+            for (const { key, section } of sections) {
+                const rows = await repo.toggleRules(trx, section as Data);
+                if (rows?.length) {
+                    updated.push(...rows);
+                    const type = key === 'ips' ? 'ip' : 'port';
+                    const action = section.active ? 'add' : 'delete';
+                    const bucket = ensure(type, section.mode, action);
+                    for (const r of rows) if (r?.value !== undefined && r?.active === section.active) bucket.add(r.value);
+                }
             }
-            updated.push(...rows);
-        }
         });
-        console.info(`Rules updated: ${JSON.stringify(updated)}`);
-        return res.status(200).json({ updated });
 
+        for (const [k, set] of buckets.entries()) {
+            const [type, mode, action] = k.split('|') as ['ip'|'port','blacklist'|'whitelist','add'|'delete'];
+            const values = Array.from(set);
+            if (values.length) await dispatcher.sendRule({ type, mode, values }, action);
+        }
+
+        return res.status(200).json({ updated, status: 'success' });
     } catch (err) {
         return next(err);
     }

@@ -71,4 +71,46 @@ describe('GET Endpoints', () => {
         expect(res.body.ports.whitelist).toHaveLength(1);
         expect(res.body.urls.blacklist).toHaveLength(1);
     });
+
+    test('Get rules filtered by type=ips', async () => {
+        withData([
+            { id: 1, value: '192.168.1.1', type: 'ip', mode: 'blacklist', active: true },
+            { id: 2, value: '10.0.0.1', type: 'ip', mode: 'whitelist', active: true }
+        ]);
+        
+        const res = await request(app).get('/api/firewall/rules?type=ips').expect(200);
+        expect(res.body).toHaveProperty('ips');
+        expect(res.body).not.toHaveProperty('ports');
+        expect(res.body).not.toHaveProperty('urls');
+        expect(res.body.ips.blacklist).toHaveLength(1);
+        expect(res.body.ips.whitelist).toHaveLength(1);
+    });
+
+    test('Get rules filtered by type=urls', async () => {
+        withData([
+            { id: 1, value: 'https://malware.com', type: 'url', mode: 'blacklist', active: true },
+            { id: 2, value: 'https://trusted.com', type: 'url', mode: 'whitelist', active: true }
+        ]);
+        
+        const res = await request(app).get('/api/firewall/rules?type=urls').expect(200);
+        expect(res.body).toHaveProperty('urls');
+        expect(res.body).not.toHaveProperty('ips');
+        expect(res.body).not.toHaveProperty('ports');
+        expect(res.body.urls.blacklist).toHaveLength(1);
+        expect(res.body.urls.whitelist).toHaveLength(1);
+    });
+
+    test('Get rules filtered by type=ports', async () => {
+        withData([
+            { id: 1, value: '8080', type: 'port', mode: 'blacklist', active: true },
+            { id: 2, value: '443', type: 'port', mode: 'whitelist', active: true }
+        ]);
+        
+        const res = await request(app).get('/api/firewall/rules?type=ports').expect(200);
+        expect(res.body).toHaveProperty('ports');
+        expect(res.body).not.toHaveProperty('ips');
+        expect(res.body).not.toHaveProperty('urls');
+        expect(res.body.ports.blacklist).toHaveLength(1);
+        expect(res.body.ports.whitelist).toHaveLength(1);
+    });
 });

@@ -7,7 +7,11 @@ import { RuleMode, RuleType } from "@/api/types";
 
 const examples = { ip: "192.168.1.1", url: "example.com", port: "8080" };
 
-const RulesAddition: React.FC = () => {
+interface RulesAdditionProps {
+    onRuleAdded?: () => void;
+}
+
+const RulesAddition: React.FC<RulesAdditionProps> = ({ onRuleAdded }) => {
     const [value, setValue] = useState("");
     const [type, setType] = useState<RuleType>("ip");
     const [mode, setMode] = useState<RuleMode>("blacklist");
@@ -19,24 +23,21 @@ const RulesAddition: React.FC = () => {
         e.preventDefault();
         if (!value || isSubmitting) return;
         
-        console.log('=== FORM SUBMIT STARTED ===');
         setIsSubmitting(true);
         
-        console.log('Calling addRule with:', { type, value, mode });
         const result = await addRule(type, value, mode);
-        console.log('addRule result:', result);
-        
+
         if (result.success) {
-            console.log('SUCCESS: Rule added');
             setValue("");
             showToast('Rule added successfully', 'success');
-            router.refresh();
+            if (onRuleAdded) {
+                onRuleAdded();
+            }
         } else {
             console.log('ERROR: Rule add failed:', result.error);
             showToast(result.error || 'Failed to add rule', 'error');
         }
         setIsSubmitting(false);
-        console.log('=== FORM SUBMIT ENDED ===');
     };
 
     return (
@@ -69,7 +70,6 @@ const RulesAddition: React.FC = () => {
                         className="w-full p-3 border rounded-lg"
                     >
                         <option value="blacklist">Blacklist (Block)</option>
-                        <option value="whitelist">Whitelist (Allow)</option>
                     </select>
                 </div>
             </div>

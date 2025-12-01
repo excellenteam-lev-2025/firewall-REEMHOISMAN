@@ -27,8 +27,11 @@ const api = async (url: string, options: RequestInit = {}) => {
     }
 };
 
-export const fetchRules = async (): Promise<{ data: ApiRulesResponse | null; error: string | null }> => {
-    const result = await api(`${ENV?.SERVER_BASE_URL}/api/firewall/rules`, { cache: 'no-store' });
+export const fetchRules = async (type?: 'ips' | 'urls' | 'ports'): Promise<{ data: ApiRulesResponse | null; error: string | null }> => {
+    const url = type 
+        ? `/api/firewall/rules?type=${type}`
+        : `/api/firewall/rules`;
+    const result = await api(url, { cache: 'no-store' });
     return { data: result.ok ? result.data : null, error: result.error };
 };
 
@@ -44,7 +47,7 @@ export const toggleRule = async (rule: Rule): Promise<{ success: boolean; error:
             ? { ids: [rule.id], mode: rule.mode, active: !rule.active }
             : {},
     };
-    const result = await api('/api/firewall/rules', {
+    const result = await api(`/api/firewall/rules`, {
         method: 'PUT',
         body: JSON.stringify(body),
         headers: { 'Content-Type': 'application/json' }
@@ -71,7 +74,7 @@ export const addRule = async (
     const result = await api(`/api/firewall/${type}`, {
         method: 'POST',
         body: JSON.stringify({
-            values: [type === 'port' ? Number(value) : value],
+            values: type === 'port' ? [Number(value)] : [value],
             mode
         })
     });

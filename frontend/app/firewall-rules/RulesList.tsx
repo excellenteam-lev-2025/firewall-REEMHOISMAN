@@ -6,8 +6,11 @@ import { useRouter } from "next/navigation";
 import { useToast, Toast } from "@/app/Toast";
 import { Rule, RulesListProps } from "@/api/types";
 
-const RulesList: React.FC<RulesListProps> = ({ typeRules, type }) => {
-    const router = useRouter();
+interface ExtendedRulesListProps extends RulesListProps {
+    onRuleChange?: () => void;
+}
+
+const RulesList: React.FC<ExtendedRulesListProps> = ({ typeRules, type, onRuleChange }) => {
     const { showToast, toast, hideToast } = useToast();
 
     if (!typeRules) {
@@ -27,7 +30,9 @@ const RulesList: React.FC<RulesListProps> = ({ typeRules, type }) => {
         const { success, error } = await toggleRule(rule);
         if (success) {
             showToast(`Rule ${rule.active ? 'disabled' : 'enabled'} successfully`, 'success');
-            router.refresh();
+            if (onRuleChange) {
+                onRuleChange();
+            }
         } else {
             console.error('Toggle rule failed:', error);
             showToast(error || 'Failed to toggle rule', 'error');
@@ -38,7 +43,9 @@ const RulesList: React.FC<RulesListProps> = ({ typeRules, type }) => {
         const { success, error } = await deleteRule(rule);
         if (success) {
             showToast('Rule deleted successfully', 'success');
-            router.refresh();
+            if (onRuleChange) {
+                onRuleChange();
+            }
         } else {
             console.error('Delete rule failed:', error);
             showToast(error || 'Failed to delete rule', 'error');
