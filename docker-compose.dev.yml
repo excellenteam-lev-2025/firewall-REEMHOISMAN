@@ -1,51 +1,94 @@
+name: firewall-dev
+
 services:
   db:
-    image: postgres:15
-    restart: always
+    image: postgres:15-alpine
+    container_name: firewall-db-dev
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 12345
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-12345}
       POSTGRES_DB: firewall_dev
     ports:
       - "5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d firewall_dev -h 127.0.0.1 -p 5432"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d firewall_dev"]
       interval: 5s
       timeout: 3s
       retries: 20
+      start_period: 10s
+    networks:
+      - firewall-network
 
   backend:
+    container_name: firewall-backend-dev
     build:
       context: ./backend
+      dockerfile: Dockerfile
+      target: development
     env_file:
       - ./backend/.env.dev
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
+      NODE_ENV: dev
       VM_IP: host.docker.internal
       VM_PORT: "9999"
-
     depends_on:
       db:
         condition: service_healthy
-    command: ["npm","run","start"]
+    command: ["npm", "run", "dev"]
     ports:
       - "4000:4000"
+    volumes:
+      - ./backend/src:/backend/src:ro
+      - ./backend/logs:/backend/logs
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - firewall-network
 
   frontend:
+    container_name: firewall-frontend-dev
     build:
       context: ./frontend
+      dockerfile: Dockerfile
+      target: development
     env_file:
       - ./frontend/.env.dev
+    environment:
+      NODE_ENV: dev
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "3000:3000"
-    command: sh -c "npm run start"
+    volumes:
+      - ./frontend/app:/frontend/app:ro
+      - ./frontend/api:/frontend/api:ro
+    command: ["npm", "run", "dev"]
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - firewall-network
+
+networks:
+  firewall-network:
+    driver: bridge
 
 volumes:
   db-data:
+    name: firewall-db-data-dev

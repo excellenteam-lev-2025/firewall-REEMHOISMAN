@@ -1,34 +1,102 @@
-version: "3.8"
+name: firewall-prod
 
 services:
   db:
-    image: postgres:15
+    image: postgres:15-alpine
+    container_name: firewall-db-prod
     restart: always
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: 12345
+      POSTGRES_USER: ${POSTGRES_USER:-firewall}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Database password is required}
       POSTGRES_DB: firewall_prod
-    ports: ["5432:5432"]
+    ports:
+      - "127.0.0.1:5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-firewall} -d firewall_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - firewall-internal
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   backend:
+    container_name: firewall-backend-prod
     build:
       context: ./backend
-    env_file: ./backend/.env.prod
-    depends_on: ['db']
-    ports: ["4000:4000"]
+      dockerfile: Dockerfile
+      target: production
+    env_file:
+      - ./backend/.env.prod
+    environment:
+      NODE_ENV: prod
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:4000:4000"
     volumes:
-      - ./backend/logs:/app/logs
+      - ./backend/logs:/backend/logs
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - firewall-internal
+      - firewall-external
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   frontend:
+    container_name: firewall-frontend-prod
     build:
       context: ./frontend
-    env_file: ./frontend/.env.prod
-    depends_on: [backend]
-    ports: ["80:3000"]
+      dockerfile: Dockerfile
+      target: production
+    env_file:
+      - ./frontend/.env.prod
+    environment:
+      NODE_ENV: prod
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:3000"
+      - "443:3000"
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - firewall-external
+      - firewall-internal
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+networks:
+  firewall-internal:
+    driver: bridge
+    internal: true
+  firewall-external:
+    driver: bridge
 
 volumes:
   db-data:
+    name: firewall-db-data-prod

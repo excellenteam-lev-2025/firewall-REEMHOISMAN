@@ -109,29 +109,37 @@ class PolicyDispatcher {
     }
 
     public async syncRules(): Promise<void> {
-        const [ips, ports] = await Promise.all([
-            getAllRules("ips").then(rs =>
-                rs.filter(r => r.mode === "blacklist" && r.active).map(r => r.value)
-            ),
-            getAllRules("ports").then(rs =>
-                rs.filter(r => r.mode === "blacklist" && r.active).map(r => r.value)
-            ),
-        ]);
+        try {
+            const [ips, ports] = await Promise.all([
+                getAllRules("ips").then(rs =>
+                    rs.filter(r => r.mode === "blacklist" && r.active).map(r => r.value)
+                ),
+                getAllRules("ports").then(rs =>
+                    rs.filter(r => r.mode === "blacklist" && r.active).map(r => r.value)
+                ),
+            ]);
 
-        const jobs: Promise<unknown>[] = [];
+            const jobs: Promise<unknown>[] = [];
 
-        if (ips.length > 0) {
-            const ipPayload = { type: "ip", mode: "blacklist", values: [...ips] };
-            jobs.push(this.sendRule(ipPayload, "add"));
+            if (ips.length > 0) {
+                const ipPayload = { type: "ip", mode: "blacklist", values: [...ips] };
+                jobs.push(this.sendRule(ipPayload, "add").catch(err => {
+                    console.warn(`[PolicyDispatcher] Failed to sync IPs: ${err.message}`);
+                }));
+            }
+
+            if (ports.length > 0) {
+                const portPayload = { type: "port", mode: "blacklist", values: [...ports] };
+                jobs.push(this.sendRule(portPayload, "add").catch(err => {
+                    console.warn(`[PolicyDispatcher] Failed to sync ports: ${err.message}`);
+                }));
+            }
+
+            await Promise.all(jobs);
+            console.info("[PolicyDispatcher] syncRules completed");
+        } catch (err: any) {
+            console.warn(`[PolicyDispatcher] syncRules failed (kernel module may not be running): ${err.message}`);
         }
-
-        if (ports.length > 0) {
-            const portPayload = { type: "port", mode: "blacklist", values: [...ports] };
-            jobs.push(this.sendRule(portPayload, "add"));
-        }
-
-        await Promise.all(jobs);
-        console.info("[PolicyDispatcher] syncRules completed");
     }
  
 

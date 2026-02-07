@@ -14,8 +14,12 @@ export const addRules = async (req:Request, res:Response, next:NextFunction) => 
         await db.transaction(async (trx) => {
             await repo.addRules(trx, req.body);
         });
-        await dispatcher.sendRule(req.body, 'add');
-        console.info('[Controller] Rules added to firewall');
+        try {
+            await dispatcher.sendRule(req.body, 'add');
+            console.info('[Controller] Rules added to firewall');
+        } catch (err: any) {
+            console.warn(`[Controller] Failed to send rules to firewall (kernel module may not be running): ${err.message}`);
+        }
         res.status(201).json({ ...req.body, status: 'success' });
 
     } catch (err) {
@@ -33,8 +37,12 @@ export const deleteRule = async (req: Request, res: Response, next: NextFunction
                 throw new HttpError(404, 'cannot find one of the rules');
             }
         });
-        dispatcher.sendRule(req.body, "delete");
-        console.log('[Controller] delete sent to firewall');
+        try {
+            await dispatcher.sendRule(req.body, "delete");
+            console.log('[Controller] delete sent to firewall');
+        } catch (err: any) {
+            console.warn(`[Controller] Failed to send delete to firewall: ${err.message}`);
+        }
         res.status(200).json({ ...req.body, status: 'success' });
     } catch (err) {
         next(err);
@@ -119,7 +127,13 @@ export const toggleRuleStatus = async (req: Request, res: Response, next: NextFu
         for (const [k, set] of buckets.entries()) {
             const [type, mode, action] = k.split('|') as ['ip'|'port','blacklist'|'whitelist','add'|'delete'];
             const values = Array.from(set);
-            if (values.length) await dispatcher.sendRule({ type, mode, values }, action);
+            if (values.length) {
+                try {
+                    await dispatcher.sendRule({ type, mode, values }, action);
+                } catch (err: any) {
+                    console.warn(`[Controller] Failed to send toggle to firewall: ${err.message}`);
+                }
+            }
         }
 
         return res.status(200).json({ updated, status: 'success' });
